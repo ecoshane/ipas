@@ -98,26 +98,26 @@
                             <div className="p-4 text-sm text-slate-700 h-96 overflow-y-auto">
                                 <div className="space-y-4">
                                     <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
-                                        <p className="font-bold text-blue-800 mb-1">👋 嗨！歡迎使用 v2.1</p>
-                                        <p>這是您的專屬 iPAS 考試練習系統。現在支援直接匯入 Excel 檔案囉！</p>
+                                        <p className="font-bold text-blue-800 mb-1">👋 嗨！歡迎使用 v2.2</p>
+                                        <p>這是您的專屬 iPAS 考試練習系統。資料只會存在您的瀏覽器中，記得定期備份喔！</p>
                                     </div>
 
                                     <div>
-                                        <h4 className="font-bold text-slate-800 mb-2 flex items-center"><FileSpreadsheet size={16} className="mr-1 text-green-600"/> 如何匯入考題 (Excel)？</h4>
+                                        <h4 className="font-bold text-slate-800 mb-2 flex items-center"><FileSpreadsheet size={16} className="mr-1 text-green-600"/> 如何匯入 Excel 題目？</h4>
                                         <p className="mb-2">這是最快的方法：</p>
                                         <ol className="list-decimal list-inside space-y-1 text-xs bg-slate-50 p-2 rounded">
-                                            <li>準備好 Excel 檔案 (.xlsx)。</li>
-                                            <li>第一列為欄位，依序：<br/><span className="text-blue-600 font-mono">科目 | 主題 | 內容 | 題目 | A | B | C | D | 正確答案 | 解析</span></li>
+                                            <li>準備好 Excel 檔案 (<strong>.xlsx</strong>)。</li>
+                                            <li>第一列為欄位名稱，順序請依照：<br/><span className="text-blue-600 font-mono">科目 | 主題 | 內容 | 題目 | A | B | C | D | 正確答案 | 解析</span></li>
                                             <li>回到系統的「管理」頁面。</li>
-                                            <li>點擊「選擇 Excel / CSV 檔案」按鈕。</li>
-                                            <li>確認預覽無誤後，點擊「確認匯入」。</li>
+                                            <li>在「Excel 快速匯入」區塊，點擊「選擇 Excel 檔案」按鈕。</li>
+                                            <li>系統讀取後會出現預覽，確認無誤後點擊「確認匯入」。</li>
                                         </ol>
-                                        <p className="text-xs text-slate-500 mt-1">💡 提示：答案填 "A" 或完整文字都可以。</p>
+                                        <p className="text-xs text-slate-500 mt-1">💡 提示：第一列會被視為標題而自動略過。</p>
                                     </div>
 
                                     <div>
                                         <h4 className="font-bold text-slate-800 mb-2 flex items-center"><Play size={16} className="mr-1 text-blue-600"/> 測驗中斷了怎麼辦？</h4>
-                                        <p>別擔心！如果您在測驗中途切換到別的頁面，只要再點擊上方的「測驗」按鈕，系統會自動帶您回到剛剛那題。</p>
+                                        <p>別擔心！如果您在測驗中途切換到別的頁面，只要再點擊上方的「測驗」按鈕，系統會自動帶您回到剛剛那題，進度不會消失。</p>
                                     </div>
                                     
                                     <div className="text-center pt-2">
@@ -159,7 +159,6 @@
           });
 
           // 批量匯入 State
-          const [bulkText, setBulkText] = useState('');
           const [bulkPreview, setBulkPreview] = useState([]);
           const fileInputRef = useRef(null);
 
@@ -269,39 +268,32 @@
 
             if (isExcel) {
                 reader.onload = (e) => {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, {type: 'array'});
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
-                    // 轉為陣列 (header: 1 代表產生二維陣列)
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
-                    processArrayData(jsonData);
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, {type: 'array'});
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        // 轉為陣列 (header: 1 代表產生二維陣列)
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+                        processArrayData(jsonData);
+                    } catch (error) {
+                        console.error(error);
+                        showNotify("Excel 讀取失敗，請確認檔案格式是否正確。");
+                    }
                 };
                 reader.readAsArrayBuffer(file);
             } else {
-                // 處理 CSV / Text
-                reader.onload = (e) => {
-                    const text = e.target.result;
-                    setBulkText(text); // 顯示在文字框供參考
-                    const rows = text.split('\n').map(row => {
-                       // 簡單判斷逗號或 Tab
-                       const delimiter = row.includes('\t') ? '\t' : ',';
-                       // 這裡的 CSV parse 比較簡略，建議用 Excel 匯入比較穩
-                       return row.split(delimiter); 
-                    });
-                    processArrayData(rows);
-                };
-                reader.readAsText(file);
+               showNotify("請選擇 .xlsx 或 .xls 格式的 Excel 檔案。");
             }
             event.target.value = '';
           };
 
-          // 通用陣列處理 (Excel 或 CSV 轉成的二維陣列)
+          // 通用陣列處理 (Excel 轉成的二維陣列)
           const processArrayData = (rows) => {
             const parsed = [];
             rows.forEach((row, index) => {
                 // 過濾空行或標題行 (假設標題行含有 "科目")
-                if (row.length < 4 || (row[0] && row[0].includes('科目'))) return;
+                if (row.length < 4 || (row[0] && String(row[0]).includes('科目'))) return;
 
                 // 對應 Excel 欄位: 0:科目, 1:主題, 2:內容, 3:題目, 4:A, 5:B, 6:C, 7:D, 8:答案, 9:解析
                 const subject = row[0] || '未分類';
@@ -341,13 +333,6 @@
             }
           };
 
-          // 處理文字貼上
-          const processTextPaste = () => {
-             if (!bulkText.trim()) return;
-             const rows = bulkText.split('\n').map(r => r.split('\t')); // 貼上預設用 Tab 分隔
-             processArrayData(rows);
-          };
-
           const confirmBulkImport = () => {
             if (bulkPreview.length === 0) {
                 showNotify("請先解析內容，才能進行匯入。");
@@ -357,7 +342,6 @@
               const newQuestions = [...questions, ...bulkPreview];
               setQuestions(newQuestions);
               showNotify(`✓ 成功匯入！目前題庫總數：${newQuestions.length} 題`);
-              setBulkText('');
               setBulkPreview([]);
             }
           };
@@ -425,7 +409,7 @@
             document.body.removeChild(link);
           };
           
-          // JSON Import is separate from Excel/CSV import logic, keeping it simple
+          // JSON Import 
           const importJSONData = (event) => {
             const file = event.target.files[0];
             if (!file) return;
@@ -465,8 +449,7 @@
             </div>
           );
 
-          // ... AddTab, BankTab, Quiz... components same as before but wrapped in logic ...
-          // Re-implementing simplified versions for the single file:
+          // ... Components: AddTab, BankTab, Quiz... ...
 
           const AddTab = () => {
             const availableSubjects = getAvailableSubjects();
@@ -653,15 +636,15 @@
 
           const ImportExportTab = () => (
             <div className="max-w-4xl mx-auto p-4 space-y-8 animate-fade-in">
-              {/* 1. Excel / CSV 快速匯入 */}
+              {/* 1. Excel 快速匯入 */}
               <section className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
                 <h3 className="font-bold text-2xl mb-6 flex items-center text-slate-800 border-b pb-4">
-                  <FileSpreadsheet className="mr-3 text-green-600" size={28}/> 匯入考題 (Excel / CSV)
+                  <FileSpreadsheet className="mr-3 text-green-600" size={28}/> 匯入考題 (Excel)
                 </h3>
                 <div className="bg-blue-50 p-5 rounded-lg mb-6 text-sm text-blue-800 border border-blue-100">
                   <p className="font-bold mb-3 text-base">使用說明：</p>
                   <ol className="list-decimal list-inside space-y-2">
-                    <li>準備 Excel 檔案 (<strong>.xlsx</strong>) 或 CSV。</li>
+                    <li>準備 Excel 檔案 (<strong>.xlsx</strong>)。</li>
                     <li>請確認欄位順序 (第一列標題列會被自動忽略)：</li>
                     <li className="font-mono bg-white px-3 py-2 rounded border border-blue-200 inline-block text-xs">
                       科目 | 主題 | 內容 | 題目 | A | B | C | D | 正確答案 | 解析
@@ -671,8 +654,8 @@
                 </div>
 
                 <div className="mb-8">
-                   <label className="block text-base font-bold text-slate-700 mb-3">選擇 Excel / CSV 檔案</label>
-                   <input type="file" accept=".csv,.txt,.xlsx,.xls" ref={fileInputRef} onChange={handleFileUpload}
+                   <label className="block text-base font-bold text-slate-700 mb-3">選擇 Excel 檔案 (.xlsx)</label>
+                   <input type="file" accept=".xlsx,.xls" ref={fileInputRef} onChange={handleFileUpload}
                      className="block w-full text-sm text-slate-500
                        file:mr-4 file:py-3 file:px-6
                        file:rounded-full file:border-0
@@ -683,12 +666,6 @@
                    />
                 </div>
                 
-                <div className="mb-6">
-                    <label className="block text-sm font-bold text-slate-700 mb-2">或：複製貼上文字 (Tab 分隔)</label>
-                    <textarea className="w-full h-32 p-4 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm font-mono whitespace-pre mb-4" placeholder="在此貼上 Excel 複製的內容..." value={bulkText} onChange={(e) => setBulkText(e.target.value)} />
-                    <button onClick={processTextPaste} className="text-blue-600 font-bold hover:underline text-sm flex items-center"><Clipboard className="mr-1" size={14}/> 解析文字內容</button>
-                </div>
-
                 {bulkPreview.length > 0 && (
                   <div className="mt-8 pt-6 border-t border-slate-200">
                     <div className="flex justify-between items-center mb-4">
@@ -741,7 +718,7 @@
               <div className="bg-white shadow-sm sticky top-0 z-10 border-b border-slate-200">
                 <div className="max-w-5xl mx-auto flex flex-col">
                     <div className="px-4 py-4 flex items-center">
-                        <div className="bg-blue-600 p-2 rounded-lg mr-3 shadow-md">
+                        <div className="bg-blue-600 p-2 rounded-lg mr-3 shadow-md flex-shrink-0">
                             <FileJson className="text-white" size={24}/>
                         </div>
                         <div className="font-black text-xl tracking-tight text-slate-800">
