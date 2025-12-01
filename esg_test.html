@@ -1,904 +1,931 @@
-import React, { useState, useEffect, useRef } from 'react';
-
-// --- 內建圖示元件 (取代 lucide-react 以避免載入錯誤) ---
-const IconBase = ({ children, size = 24, className = "" }) => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
-    className={className}
-  >
-    {children}
-  </svg>
-);
-
-const Plus = (props) => <IconBase {...props}><path d="M5 12h14"/><path d="M12 5v14"/></IconBase>;
-const Save = (props) => <IconBase {...props}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></IconBase>;
-const Trash2 = (props) => <IconBase {...props}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></IconBase>;
-const FileJson = (props) => <IconBase {...props}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M10 13a2 2 0 0 0-2 2v1a2 2 0 0 0 2 2"/><path d="M14 13a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2"/></IconBase>;
-const Play = (props) => <IconBase {...props}><polygon points="5 3 19 12 5 21 5 3"/></IconBase>;
-const CheckCircle = (props) => <IconBase {...props}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></IconBase>;
-const XCircle = (props) => <IconBase {...props}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></IconBase>;
-const FolderOpen = (props) => <IconBase {...props}><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></IconBase>;
-const Download = (props) => <IconBase {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></IconBase>;
-const Upload = (props) => <IconBase {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></IconBase>;
-const BookOpen = (props) => <IconBase {...props}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></IconBase>;
-const Layers = (props) => <IconBase {...props}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></IconBase>;
-const FileSpreadsheet = (props) => <IconBase {...props}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M14 13v4"/></IconBase>;
-const Clipboard = (props) => <IconBase {...props}><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></IconBase>;
-
-// 預設的範例題目 (已清空，依使用者要求)
-const DEFAULT_QUESTIONS = [];
-
-// --- 預設考科結構 (保留，用於選單連動) ---
-const EXAM_STRUCTURE = {
-  "考科一：節能減碳技術實務": {
-    "組織節能減碳策略": [
-      "減碳/節能目標設定與路徑規劃",
-      "碳排熱區辨識與能源盤查資料解析",
-      "財務決策模型與風險評估"
-    ],
-    "節能技術應用與能源管理": [
-      "公用設施節能技術選用分析",
-      "節能技術投資效益與回收期評估",
-      "ESCO應用實務",
-      "ISO 50001能源管理系統導入與運用",
-      "節能相關前瞻技術（如氫能、儲能系統、智慧能源等）"
-    ],
-    "再生能源與綠電導入": [
-      "再生能源種類及優缺點比較",
-      "國內再生能源導入及效益評估",
-      "綠電採購模式與制度（如T-REC、CPPA、自發自用等）"
-    ]
-  },
-  "考科二：碳管理制度實務": {
-    "碳規範實務與揭露準則應用": [
-      "國內氣候相關政策與減碳法規之應用（如氣候變遷因應法、三子法等）",
-      "國際揭露制度架構理解與實務應用（如IFRS、GRI、SASB等）",
-      "減碳相關倡議與準則實務接軌（如SBTi、TCFD、TNFD等）"
-    ],
-    "組織自願減量實務": [
-      "國內外自願減量專案與抵換制度",
-      "碳移除與負碳技術（如碳匯、CCUS等）",
-      "碳抵換與碳資源交易",
-      "內部碳定價與碳資產管理"
-    ],
-    "永續供應鏈管理": [
-      "範疇三碳排數據盤查與估算實務",
-      "供應鏈減碳風險評估與管理機制"
-    ]
-  }
-};
-
-export default function ExamSystem() {
-  // --- State ---
-  const [questions, setQuestions] = useState(() => {
-    try {
-      const saved = localStorage.getItem('myExamBank');
-      // 如果本地有存檔，則使用存檔；如果沒有，則使用空陣列
-      return saved ? JSON.parse(saved) : DEFAULT_QUESTIONS; 
-    } catch (e) {
-      console.error("Storage read error, starting with default questions.", e);
-      return DEFAULT_QUESTIONS;
-    }
-  });
-
-  const [activeTab, setActiveTab] = useState('add');
-  const [notification, setNotification] = useState(null);
-
-  // 新增題目 State
-  const [newQ, setNewQ] = useState({
-    subject: '',
-    section: '',
-    topic: '',
-    question: '',
-    options: ['', '', '', ''],
-    correctAnswer: '',
-    explanation: ''
-  });
-
-  // 批量匯入 State
-  const [bulkText, setBulkText] = useState('');
-  const [bulkPreview, setBulkPreview] = useState([]);
-  const fileInputRef = useRef(null);
-
-  // 測驗 State
-  const [quizConfig, setQuizConfig] = useState({ subject: 'all', mode: 'all' });
-  const [currentQuiz, setCurrentQuiz] = useState([]);
-  const [quizIndex, setQuizIndex] = useState(0);
-  const [showResult, setShowResult] = useState(false);
-  const [userSelection, setUserSelection] = useState(null);
-  const [score, setScore] = useState(0);
-
-  // --- Effects ---
-  useEffect(() => {
-    try {
-      localStorage.setItem('myExamBank', JSON.stringify(questions));
-    } catch (e) {
-      console.error("Storage error", e);
-    }
-  }, [questions]);
-
-  // --- Helpers ---
-  const showNotify = (msg) => {
-    setNotification(msg);
-    setTimeout(() => setNotification(null), 3000);
-  };
-
-  const getAvailableSubjects = () => {
-    const presetSubjects = Object.keys(EXAM_STRUCTURE);
-    const existingSubjects = questions.map(q => q.subject).filter(Boolean);
-    return [...new Set([...presetSubjects, ...existingSubjects])];
-  };
-
-  const getAvailableSections = (currentSubject) => {
-    let sections = [];
-    if (EXAM_STRUCTURE[currentSubject]) {
-      sections = [...Object.keys(EXAM_STRUCTURE[currentSubject])];
-    }
-    const existingSections = questions
-      .filter(q => q.subject === currentSubject)
-      .map(q => q.section)
-      .filter(Boolean);
-      
-    return [...new Set([...sections, ...existingSections])];
-  };
-
-  const getAvailableTopics = (currentSubject, currentSection) => {
-    let topics = [];
-    if (EXAM_STRUCTURE[currentSubject] && EXAM_STRUCTURE[currentSubject][currentSection]) {
-      topics = [...EXAM_STRUCTURE[currentSubject][currentSection]];
-    }
-    const existingTopics = questions
-      .filter(q => q.subject === currentSubject && q.section === currentSection)
-      .map(q => q.topic)
-      .filter(Boolean);
-
-    return [...new Set([...topics, ...existingTopics])];
-  };
-
-  // --- Handlers: Add Question ---
-  const handleAddOption = () => {
-    setNewQ({ ...newQ, options: [...newQ.options, ''] });
-  };
-
-  const handleOptionChange = (index, value) => {
-    const newOptions = [...newQ.options];
-    newOptions[index] = value;
-    setNewQ({ ...newQ, options: newOptions });
-  };
-
-  const handleRemoveOption = (index) => {
-    const newOptions = newQ.options.filter((_, i) => i !== index);
-    setNewQ({ ...newQ, options: newOptions });
-  };
-
-  const saveQuestion = () => {
-    if (!newQ.subject || !newQ.question || !newQ.correctAnswer) {
-      showNotify("請至少填寫：科目、題目、正確答案");
-      return;
-    }
-
-    const questionToAdd = {
-      ...newQ,
-      id: Date.now(),
-      type: 'single'
-    };
-
-    setQuestions([...questions, questionToAdd]);
-    showNotify("題目已新增！");
-    setNewQ({ 
-      ...newQ, 
-      question: '', 
-      options: ['', '', '', ''], 
-      correctAnswer: '', 
-      explanation: '' 
-    });
-  };
-
-  const deleteQuestion = (id) => {
-    if (confirm("確定要刪除這題嗎？")) {
-      setQuestions(questions.filter(q => q.id !== id));
-      showNotify("題目已刪除");
-    }
-  };
-
-  // --- Handlers: Bulk Import (CSV/Excel Copy Paste) ---
-  
-  // CSV Line Parser: handles quotes properly (e.g. "A, B, C")
-  const parseCSVRow = (rowStr, delimiter = ',') => {
-    const chars = rowStr.split('');
-    const cols = [];
-    let current = '';
-    let inQuote = false;
-
-    for (let i = 0; i < chars.length; i++) {
-      const c = chars[i];
-      if (c === '"') {
-        // Toggle quote state
-        if (inQuote && chars[i+1] === '"') {
-           // Double quote escape
-           current += '"';
-           i++; 
-        } else {
-           inQuote = !inQuote;
-        }
-      } else if (c === delimiter && !inQuote) {
-        cols.push(current.trim());
-        current = '';
-      } else {
-        current += c;
-      }
-    }
-    cols.push(current.trim());
-    return cols;
-  };
-
-  const processImportContent = (content) => {
-    if (!content.trim()) return;
-
-    // Detect delimiter: if many tabs are found, assume TSV (Excel copy paste or .txt)
-    // otherwise assume CSV (comma)
-    const firstLine = content.split('\n')[0];
-    const delimiter = firstLine.includes('\t') ? '\t' : ',';
-
-    const rows = content.split('\n').filter(row => row.trim() !== '');
-    const parsed = [];
-
-    rows.forEach((row, index) => {
-      // Use the parser to handle quotes safely if CSV
-      const cols = parseCSVRow(row, delimiter);
-      
-      // Expected structure:
-      // 0:Subject | 1:Section | 2:Topic | 3:Question | 4:OptA | 5:OptB | 6:OptC | 7:OptD | 8:CorrectAns | 9:Explanation
-      
-      if (cols.length < 9) {
-        return; 
-      }
-
-      // Try to determine the correct answer
-      let correct = cols[8];
-      // Strip quotes if present
-      if (correct && correct.startsWith('"') && correct.endsWith('"')) correct = correct.slice(1, -1);
-      
-      const opts = [cols[4], cols[5], cols[6], cols[7]];
-      if (correct && correct.toUpperCase() === 'A') correct = cols[4];
-      if (correct && correct.toUpperCase() === 'B') correct = cols[5];
-      if (correct && correct.toUpperCase() === 'C') correct = cols[6];
-      if (correct && correct.toUpperCase() === 'D') correct = cols[7];
-
-      parsed.push({
-        id: Date.now() + index + Math.random(), // ensure unique
-        subject: cols[0] || '未分類科目',
-        section: cols[1] || '',
-        topic: cols[2] || '',
-        question: cols[3],
-        options: opts.filter(o => o),
-        correctAnswer: correct,
-        explanation: cols[9] || '',
-        type: 'single'
-      });
-    });
-
-    setBulkPreview(parsed);
-    if (parsed.length > 0) {
-       showNotify(`成功解析 ${parsed.length} 筆資料！請檢視後按確認。`);
-    } else {
-       showNotify(`解析失敗，請檢查格式 (分隔符號: ${delimiter === '\t' ? 'Tab' : '逗號'})`);
-    }
-  };
-
-  const handleFileUpload = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target.result;
-      setBulkText(text); // Also show in textarea
-      processImportContent(text);
-    };
-    reader.readAsText(file); // Default UTF-8
-    // Reset input
-    event.target.value = '';
-  };
-
-  const confirmBulkImport = () => {
-    if (bulkPreview.length === 0) {
-        showNotify("請先解析內容，才能進行匯入。");
-        return;
-    }
-    
-    // 進行狀態更新和確認
-    if (confirm(`確認匯入 ${bulkPreview.length} 題？匯入後題庫總數將變為 ${questions.length + bulkPreview.length} 題。`)) {
-      
-      const newQuestions = [...questions, ...bulkPreview];
-      setQuestions(newQuestions);
-      
-      // 優化：提供更明確的成功訊息和總數
-      showNotify(`✓ 成功匯入 ${bulkPreview.length} 題！目前題庫總數：${newQuestions.length} 題`);
-      
-      // 清理批量匯入的暫存狀態
-      setBulkText('');
-      setBulkPreview([]);
-      
-      // 由於狀態是異步更新，這裡的 console.log 只是輔助檢查
-      console.log(`Import confirmed. New total questions: ${newQuestions.length}`);
-    }
-  };
-
-  // --- Handlers: Quiz ---
-  const startQuiz = () => {
-    let qList = questions;
-    if (quizConfig.subject !== 'all') {
-      qList = questions.filter(q => q.subject === quizConfig.subject);
-    }
-    
-    qList = qList.sort(() => Math.random() - 0.5);
-
-    if (qList.length === 0) {
-      showNotify("該範圍沒有題目！");
-      return;
-    }
-
-    setCurrentQuiz(qList);
-    setQuizIndex(0);
-    setScore(0);
-    setShowResult(false);
-    setUserSelection(null);
-    setActiveTab('quiz_running');
-  };
-
-  const handleAnswerSubmit = (option) => {
-    setUserSelection(option);
-    setShowResult(true);
-    if (option === currentQuiz[quizIndex].correctAnswer) {
-      setScore(score + 1);
-    }
-  };
-
-  const nextQuestion = () => {
-    if (quizIndex < currentQuiz.length - 1) {
-      setQuizIndex(quizIndex + 1);
-      setShowResult(false);
-      setUserSelection(null);
-    } else {
-      setActiveTab('quiz_summary');
-    }
-  };
-
-  // --- Handlers: JSON Import/Export ---
-  const exportData = () => {
-    const dataStr = JSON.stringify(questions, null, 2);
-    const blob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `iPAS_Exam_Bank_${new Date().toISOString().slice(0,10)}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const importData = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const imported = JSON.parse(e.target.result);
-        if (Array.isArray(imported)) {
-          if (confirm(`即將匯入 ${imported.length} 題，這會與現有題目合併，確定嗎？`)) {
-             setQuestions([...questions, ...imported]);
-             showNotify("匯入成功！");
-          }
-        } else {
-          showNotify("格式錯誤：檔案必須是 JSON 陣列");
-        }
-      } catch (err) {
-        showNotify("檔案讀取失敗");
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  // --- Components ---
-
-  const Navigation = () => (
-    <div className="flex bg-slate-800 text-white p-2 overflow-x-auto space-x-2 shadow-md">
-      <button 
-        onClick={() => setActiveTab('add')} 
-        className={`flex items-center px-4 py-2 rounded-md transition whitespace-nowrap ${activeTab === 'add' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}
-      >
-        <Plus size={18} className="mr-2" /> 新增
-      </button>
-      <button 
-        onClick={() => setActiveTab('bank')} 
-        className={`flex items-center px-4 py-2 rounded-md transition whitespace-nowrap ${activeTab === 'bank' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}
-      >
-        <BookOpen size={18} className="mr-2" /> 題庫 ({questions.length})
-      </button>
-      <button 
-        onClick={() => setActiveTab('quiz')} 
-        className={`flex items-center px-4 py-2 rounded-md transition whitespace-nowrap ${activeTab === 'quiz' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}
-      >
-        <Play size={18} className="mr-2" /> 測驗
-      </button>
-      <button 
-        onClick={() => setActiveTab('import')} 
-        className={`flex items-center px-4 py-2 rounded-md transition whitespace-nowrap ${activeTab === 'import' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}
-      >
-        <FolderOpen size={18} className="mr-2" /> 管理
-      </button>
-    </div>
-  );
-
-  const AddTab = () => {
-    const availableSubjects = getAvailableSubjects();
-    const availableSections = getAvailableSections(newQ.subject);
-    const availableTopics = getAvailableTopics(newQ.subject, newQ.section);
-
-    return (
-      <div className="max-w-3xl mx-auto p-4 bg-white rounded-lg shadow mt-4">
-        <h2 className="text-xl font-bold mb-4 text-slate-800 border-b pb-2 flex items-center">
-          <Plus size={20} className="mr-2"/> 新增題目 (三層架構)
-        </h2>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center">
-               <Layers size={14} className="mr-1"/> 層級 1：科目名稱
-            </label>
-            <input 
-              list="subjects" 
-              type="text" 
-              className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none bg-blue-50"
-              placeholder="選擇或輸入考科..."
-              value={newQ.subject}
-              onChange={(e) => setNewQ({...newQ, subject: e.target.value, section: '', topic: ''})}
-            />
-            <datalist id="subjects">
-              {availableSubjects.map(s => <option key={s} value={s} />)}
-            </datalist>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">層級 2：評鑑主題</label>
-            <input 
-              list="sections"
-              type="text" 
-              className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none bg-blue-50"
-              placeholder="選擇或輸入主題..."
-              value={newQ.section}
-              onChange={(e) => setNewQ({...newQ, section: e.target.value, topic: ''})}
-              disabled={!newQ.subject}
-            />
-            <datalist id="sections">
-              {availableSections.map(s => <option key={s} value={s} />)}
-            </datalist>
-          </div>
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-slate-700 mb-1">層級 3：評鑑內容</label>
-          <input 
-            list="topics"
-            type="text" 
-            className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none bg-blue-50"
-            placeholder="選擇或輸入內容..."
-            value={newQ.topic}
-            onChange={(e) => setNewQ({...newQ, topic: e.target.value})}
-            disabled={!newQ.section}
-          />
-          <datalist id="topics">
-              {availableTopics.map(t => <option key={t} value={t} />)}
-          </datalist>
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-slate-700 mb-1">題目內容</label>
-          <textarea 
-            className="w-full p-2 border rounded h-24 focus:ring-2 focus:ring-blue-500 outline-none"
-            placeholder="請輸入題目敘述..."
-            value={newQ.question}
-            onChange={(e) => setNewQ({...newQ, question: e.target.value})}
-          />
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-slate-700 mb-1">選項 (點選圓圈設定正確答案)</label>
-          {newQ.options.map((opt, idx) => (
-            <div key={idx} className="flex items-center mb-2 gap-2">
-              <input 
-                type="radio" 
-                name="correctAnswer" 
-                checked={newQ.correctAnswer === opt && opt !== ''}
-                onChange={() => setNewQ({...newQ, correctAnswer: opt})}
-                className="w-4 h-4 text-blue-600 cursor-pointer"
-              />
-              <span className="text-gray-500 w-6 text-center">{String.fromCharCode(65+idx)}</span>
-              <input 
-                type="text" 
-                className="flex-1 p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-                placeholder={`選項 ${idx + 1}`}
-                value={opt}
-                onChange={(e) => handleOptionChange(idx, e.target.value)}
-              />
-              <button onClick={() => handleRemoveOption(idx)} className="text-red-400 hover:text-red-600"><Trash2 size={16}/></button>
-            </div>
-          ))}
-          <button onClick={handleAddOption} className="text-sm text-blue-600 hover:text-blue-800 flex items-center mt-1">
-            <Plus size={14} className="mr-1"/> 增加選項
-          </button>
-        </div>
-
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-slate-700 mb-1">解析 (選填)</label>
-          <textarea 
-            className="w-full p-2 border rounded h-20 focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50"
-            placeholder="輸入解析或法規來源..."
-            value={newQ.explanation}
-            onChange={(e) => setNewQ({...newQ, explanation: e.target.value})}
-          />
-        </div>
-
-        <button 
-          onClick={saveQuestion}
-          className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition flex justify-center items-center shadow-md"
-        >
-          <Save size={20} className="mr-2" /> 儲存題目
-        </button>
-      </div>
-    );
-  };
-
-  const BankTab = () => {
-    const [filterSubject, setFilterSubject] = useState('all');
-    const allSubjects = getAvailableSubjects();
-    
-    const filteredQuestions = filterSubject === 'all' 
-      ? questions 
-      : questions.filter(q => q.subject === filterSubject);
-
-    return (
-      <div className="max-w-4xl mx-auto p-4">
-        <div className="flex justify-between items-center mb-4 bg-white p-3 rounded shadow-sm">
-          <h2 className="text-xl font-bold text-slate-800 flex items-center">
-            <BookOpen size={20} className="mr-2"/> 題庫總覽
-          </h2>
-          <select 
-            className="p-2 border rounded bg-slate-50 max-w-[200px] text-sm"
-            value={filterSubject}
-            onChange={(e) => setFilterSubject(e.target.value)}
-          >
-            <option value="all">顯示所有科目</option>
-            {allSubjects.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-
-        <div className="space-y-4">
-          {filteredQuestions.length === 0 ? (
-            <div className="text-center text-gray-500 py-10 border-2 border-dashed border-gray-300 rounded-lg">
-              目前沒有題目，請前往「新增」頁面輸入考題，或使用「管理」頁面的匯入功能。
-            </div>
-          ) : filteredQuestions.map((q, idx) => (
-            <div key={q.id} className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500 relative group">
-              <button 
-                onClick={() => deleteQuestion(q.id)}
-                className="absolute top-4 right-4 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"
-              >
-                <Trash2 size={18} />
-              </button>
-              <div className="flex flex-wrap gap-2 mb-2 text-xs">
-                 <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded font-bold">{q.subject}</span>
-                 {q.section && <span className="bg-green-100 text-green-800 px-2 py-1 rounded">{q.section}</span>}
-                 {q.topic && <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded">{q.topic}</span>}
-              </div>
-              
-              <h3 className="font-semibold text-slate-800 mb-2 mt-1">{idx + 1}. {q.question}</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-slate-600 mb-3">
-                {q.options.map((opt, i) => (
-                  <div key={i} className={`p-2 rounded ${opt === q.correctAnswer ? 'bg-green-100 text-green-800 font-bold border border-green-200' : 'bg-gray-50'}`}>
-                    {String.fromCharCode(65+i)}. {opt}
-                  </div>
-                ))}
-              </div>
-              {q.explanation && (
-                <div className="text-sm text-slate-500 bg-slate-50 p-2 rounded border border-slate-100">
-                  <span className="font-bold text-slate-700">解析：</span>{q.explanation}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  const QuizSetupTab = () => {
-     const allSubjects = getAvailableSubjects();
-     return (
-        <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded-lg shadow text-center">
-          <Play size={48} className="mx-auto text-blue-500 mb-4" />
-          <h2 className="text-2xl font-bold mb-6">測驗設定</h2>
-          
-          <div className="mb-6 text-left">
-            <label className="block text-sm font-medium text-slate-700 mb-2">請選擇測驗科目 (Level 1)</label>
-            <select 
-              className="w-full p-3 border rounded bg-slate-50"
-              value={quizConfig.subject}
-              onChange={(e) => setQuizConfig({...quizConfig, subject: e.target.value})}
-            >
-              <option value="all">全部考科 ({questions.length} 題)</option>
-              {allSubjects.map(s => (
-                <option key={s} value={s}>{s} ({questions.filter(q => q.subject === s).length} 題)</option>
-              ))}
-            </select>
-          </div>
-
-          <button 
-            onClick={startQuiz}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition"
-          >
-            開始測驗
-          </button>
-        </div>
-     );
-  };
-
-  const QuizRunning = () => {
-    const q = currentQuiz[quizIndex];
-    if (!q) return null;
-
-    return (
-      <div className="max-w-2xl mx-auto mt-6 p-6 bg-white rounded-lg shadow-lg">
-        <div className="mb-4 text-xs text-slate-500 flex flex-wrap gap-2 items-center border-b pb-2">
-          <span className="font-bold text-blue-600">{q.subject}</span>
-          {q.section && <span>/ {q.section}</span>}
-          {q.topic && <span>/ {q.topic}</span>}
-          <span className="ml-auto bg-gray-100 px-2 py-1 rounded text-gray-600">題數 {quizIndex + 1} / {currentQuiz.length}</span>
-        </div>
-        
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-slate-800 leading-relaxed">{q.question}</h2>
-        </div>
-
-        <div className="space-y-3 mb-6">
-          {q.options.map((opt, idx) => {
-            let itemClass = "w-full text-left p-4 rounded border transition flex items-center ";
-            if (showResult) {
-              if (opt === q.correctAnswer) itemClass += "bg-green-100 border-green-500 text-green-900 font-bold";
-              else if (opt === userSelection && opt !== q.correctAnswer) itemClass += "bg-red-100 border-red-500 text-red-900";
-              else itemClass += "bg-gray-50 opacity-60";
-            } else {
-              itemClass += "hover:bg-blue-50 hover:border-blue-300 bg-white border-gray-200";
-            }
-
-            return (
-              <button 
-                key={idx} 
-                onClick={() => !showResult && handleAnswerSubmit(opt)}
-                disabled={showResult}
-                className={itemClass}
-              >
-                <span className="w-6 h-6 rounded-full border border-current mr-3 flex items-center justify-center text-xs">
-                  {String.fromCharCode(65+idx)}
-                </span>
-                {opt}
-              </button>
-            )
-          })}
-        </div>
-
-        {showResult && (
-          <div className="animate-fade-in mb-6 p-4 bg-slate-50 rounded border border-slate-200">
-            <div className={`flex items-center font-bold mb-2 ${userSelection === q.correctAnswer ? 'text-green-600' : 'text-red-600'}`}>
-              {userSelection === q.correctAnswer ? <CheckCircle className="mr-2"/> : <XCircle className="mr-2"/>}
-              {userSelection === q.correctAnswer ? "答對了！" : "答錯了！"}
-            </div>
-            <p className="text-slate-700"><span className="font-bold">正確答案：</span> {q.correctAnswer}</p>
-            {q.explanation && (
-              <p className="text-slate-600 mt-2 text-sm"><span className="font-bold">解析：</span> {q.explanation}</p>
-            )}
-          </div>
-        )}
-
-        {showResult && (
-          <button 
-            onClick={nextQuestion}
-            className="w-full bg-slate-800 text-white py-3 rounded-lg hover:bg-slate-900 transition font-bold"
-          >
-            {quizIndex < currentQuiz.length - 1 ? "下一題" : "查看結果"}
-          </button>
-        )}
-      </div>
-    );
-  };
-
-  const QuizSummary = () => (
-    <div className="max-w-md mx-auto mt-10 p-8 bg-white rounded-lg shadow text-center">
-      <div className="text-6xl mb-4">🎉</div>
-      <h2 className="text-2xl font-bold mb-2">測驗完成！</h2>
-      <p className="text-slate-500 mb-6">您在 {currentQuiz.length} 題中答對了 {score} 題。</p>
-      
-      <div className="text-4xl font-bold text-blue-600 mb-8">
-        {Math.round((score / currentQuiz.length) * 100)}分
-      </div>
-
-      <div className="flex gap-4">
-        <button 
-          onClick={() => setActiveTab('quiz')}
-          className="flex-1 bg-gray-200 text-gray-800 py-2 rounded hover:bg-gray-300"
-        >
-          返回選單
-        </button>
-        <button 
-          onClick={startQuiz}
-          className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
-        >
-          再測一次
-        </button>
-      </div>
-    </div>
-  );
-
-  const ImportExportTab = () => (
-    <div className="max-w-4xl mx-auto p-4 space-y-8">
-      
-      {/* 1. Excel / CSV 快速匯入 */}
-      <section className="bg-white p-6 rounded-lg shadow border border-blue-200">
-        <h3 className="font-bold text-xl mb-4 flex items-center text-blue-800">
-          <FileSpreadsheet className="mr-2"/> Excel / CSV 快速匯入
-        </h3>
-        <div className="bg-blue-50 p-4 rounded mb-4 text-sm text-blue-800">
-          <p className="font-bold mb-2">使用說明：</p>
-          <ol className="list-decimal list-inside space-y-1">
-            <li>在 Excel 中整理考題，請依照以下 10 個欄位順序排列：</li>
-            <li className="font-mono bg-white px-2 py-1 rounded border border-blue-200 inline-block text-xs mt-1 mb-1">
-              科目 | 主題 | 內容 | 題目 | 選項A | 選項B | 選項C | 選項D | 正確答案 | 解析
-            </li>
-            <li>將 Excel 另存為 <strong>CSV (逗號分隔)</strong> 格式，或將 Excel 內容複製貼上到下方。</li>
-          </ol>
-        </div>
-
-        <div className="mb-4 flex gap-4 items-end">
-           <div className="flex-1">
-             <label className="block text-sm font-bold text-slate-700 mb-2">方式一：直接上傳 CSV 檔案</label>
-             <input 
-               type="file" 
-               accept=".csv,.txt"
-               ref={fileInputRef}
-               onChange={handleFileUpload}
-               className="block w-full text-sm text-slate-500
-                 file:mr-4 file:py-2 file:px-4
-                 file:rounded-full file:border-0
-                 file:text-sm file:font-semibold
-                 file:bg-blue-50 file:text-blue-700
-                 hover:file:bg-blue-100
-               "
-             />
-           </div>
-        </div>
-        
-        <label className="block text-sm font-bold text-slate-700 mb-2">方式二：複製貼上文字 (CSV 或 Tab 分隔)</label>
-        <textarea 
-          className="w-full h-40 p-3 border rounded focus:ring-2 focus:ring-blue-500 text-sm font-mono whitespace-pre mb-4"
-          placeholder="請在此處貼上 CSV 內容或 Excel 複製的文字..."
-          value={bulkText}
-          onChange={(e) => {
-            setBulkText(e.target.value);
-            // 當用戶貼上時，不用立即解析，等按下按鈕，或者可以加個debounce
-          }}
-        />
-
-        <div className="flex gap-2">
-           <button 
-             onClick={() => processImportContent(bulkText)}
-             className="bg-blue-600 text-white px-6 py-2 rounded font-bold hover:bg-blue-700 transition flex items-center"
-           >
-             <Clipboard className="mr-2" size={18}/> 解析內容
-           </button>
-           {bulkPreview.length > 0 && (
-             <button 
-               onClick={confirmBulkImport}
-               className="bg-green-600 text-white px-6 py-2 rounded font-bold hover:bg-green-700 transition flex items-center"
-             >
-               <CheckCircle className="mr-2" size={18}/> 確認匯入 {bulkPreview.length} 題
-             </button>
-           )}
-        </div>
-
-        {/* 預覽區域 */}
-        {bulkPreview.length > 0 && (
-          <div className="mt-6 border-t pt-4">
-            <h4 className="font-bold text-gray-700 mb-2">匯入預覽 (前 3 筆)：</h4>
-            <div className="space-y-2">
-              {bulkPreview.slice(0, 3).map((q, i) => (
-                <div key={i} className="bg-gray-50 p-3 rounded border text-sm">
-                  <div className="font-bold text-blue-600 mb-1">{q.subject} / {q.section}</div>
-                  <div>Q: {q.question}</div>
-                  <div className="text-gray-500 mt-1">Ans: {q.correctAnswer} | 說明: {q.explanation.slice(0, 30)}...</div>
-                </div>
-              ))}
-              {bulkPreview.length > 3 && <div className="text-center text-gray-500 text-sm">...還有 {bulkPreview.length - 3} 筆資料</div>}
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* 2. JSON 檔案管理 */}
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow border border-slate-200">
-          <h3 className="font-bold text-lg mb-4 flex items-center text-slate-700">
-            <Download className="mr-2"/> 匯出備份 (JSON)
-          </h3>
-          <p className="text-sm text-slate-500 mb-4">將完整的題庫備份下載為檔案，以防資料遺失。</p>
-          <button onClick={exportData} className="w-full bg-slate-100 text-slate-700 py-2 rounded font-bold hover:bg-slate-200 transition border border-slate-300">
-            下載題庫檔案
-          </button>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow border border-slate-200">
-          <h3 className="font-bold text-lg mb-4 flex items-center text-slate-700">
-            <Upload className="mr-2"/> 匯入備份 (JSON)
-          </h3>
-          <p className="text-sm text-slate-500 mb-4">選擇之前匯出的 .json 備份檔。</p>
-          <label className="block w-full cursor-pointer bg-slate-100 text-slate-700 py-2 rounded font-bold hover:bg-slate-200 transition text-center border border-slate-300">
-            選擇檔案
-            <input type="file" accept=".json" onChange={importData} className="hidden" />
-          </label>
-        </div>
-      </section>
-
-      <div className="bg-yellow-50 p-4 rounded border border-yellow-200 text-sm text-yellow-800 flex items-start">
-        <div className="font-bold mr-2 text-lg">!</div>
-        <div>
-           <strong>資料保存提示：</strong> 此系統目前是離線版，資料僅儲存在您的瀏覽器中。請務必定期使用「匯出備份」功能下載 JSON 檔，以免清除瀏覽器快取後資料遺失。
-        </div>
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="min-h-screen bg-slate-100 font-sans pb-10">
-      <style>{`
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iPAS淨零中級考試練習系統</title>
+    <!-- 載入 Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 載入 React/ReactDOM CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- 載入 Babel CDN (用於在瀏覽器中編譯 JSX) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        /* 確保字體可讀性 */
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
         /* 簡單的淡入動畫 */
         @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(-10px); }
-          to { opacity: 1; transform: translateY(0); }
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .animate-fade-in {
-          animation: fadeIn 0.3s ease-out;
+            animation: fadeIn 0.3s ease-out;
         }
-      `}</style>
-      <div className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center text-slate-800 font-bold text-xl">
-             <FileJson className="mr-2 text-blue-600"/> 
-             iPAS淨零中級考試練習系統
-          </div>
-          {notification && (
-            <div className="fixed top-20 right-4 bg-slate-800 text-white px-4 py-2 rounded shadow-lg animate-bounce z-50">
-              {notification}
-            </div>
-          )}
-        </div>
-        <Navigation />
-      </div>
+    </style>
+</head>
+<body>
+    <div id="root"></div>
 
-      <div className="max-w-5xl mx-auto mt-6 px-4">
-        {activeTab === 'add' && <AddTab />}
-        {activeTab === 'bank' && <BankTab />}
-        {activeTab === 'quiz' && <QuizSetupTab />}
-        {activeTab === 'quiz_running' && <QuizRunning />}
-        {activeTab === 'quiz_summary' && <QuizSummary />}
-        {activeTab === 'import' && <ImportExportTab />}
-      </div>
-    </div>
-  );
-}
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- 內建圖示元件 (取代 lucide-react 以避免載入錯誤) ---
+        const IconBase = ({ children, size = 24, className = "" }) => (
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width={size} 
+            height={size} 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            className={className}
+          >
+            {children}
+          </svg>
+        );
+
+        const Plus = (props) => <IconBase {...props}><path d="M5 12h14"/><path d="M12 5v14"/></IconBase>;
+        const Save = (props) => <IconBase {...props}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></IconBase>;
+        const Trash2 = (props) => <IconBase {...props}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></IconBase>;
+        const FileJson = (props) => <IconBase {...props}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M10 13a2 2 0 0 0-2 2v1a2 2 0 0 0 2 2"/><path d="M14 13a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2"/></IconBase>;
+        const Play = (props) => <IconBase {...props}><polygon points="5 3 19 12 5 21 5 3"/></IconBase>;
+        const CheckCircle = (props) => <IconBase {...props}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></IconBase>;
+        const XCircle = (props) => <IconBase {...props}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></IconBase>;
+        const FolderOpen = (props) => <IconBase {...props}><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></IconBase>;
+        const Download = (props) => <IconBase {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></IconBase>;
+        const Upload = (props) => <IconBase {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></IconBase>;
+        const BookOpen = (props) => <IconBase {...props}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></IconBase>;
+        const Layers = (props) => <IconBase {...props}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></IconBase>;
+        const FileSpreadsheet = (props) => <IconBase {...props}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8"/><path d="M8 17h8"/><path d="M14 13v4"/></IconBase>;
+        const Clipboard = (props) => <IconBase {...props}><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></IconBase>;
+
+        // 預設的範例題目 (已清空，依使用者要求)
+        const DEFAULT_QUESTIONS = [];
+
+        // --- 預設考科結構 (保留，用於選單連動) ---
+        const EXAM_STRUCTURE = {
+          "考科一：節能減碳技術實務": {
+            "組織節能減碳策略": [
+              "減碳/節能目標設定與路徑規劃",
+              "碳排熱區辨識與能源盤查資料解析",
+              "財務決策模型與風險評估"
+            ],
+            "節能技術應用與能源管理": [
+              "公用設施節能技術選用分析",
+              "節能技術投資效益與回收期評估",
+              "ESCO應用實務",
+              "ISO 50001能源管理系統導入與運用",
+              "節能相關前瞻技術（如氫能、儲能系統、智慧能源等）"
+            ],
+            "再生能源與綠電導入": [
+              "再生能源種類及優缺點比較",
+              "國內再生能源導入及效益評估",
+              "綠電採購模式與制度（如T-REC、CPPA、自發自用等）"
+            ]
+          },
+          "考科二：碳管理制度實務": {
+            "碳規範實務與揭露準則應用": [
+              "國內氣候相關政策與減碳法規之應用（如氣候變遷因應法、三子法等）",
+              "國際揭露制度架構理解與實務應用（如IFRS、GRI、SASB等）",
+              "減碳相關倡議與準則實務接軌（如SBTi、TCFD、TNFD等）"
+            ],
+            "組織自願減量實務": [
+              "國內外自願減量專案與抵換制度",
+              "碳移除與負碳技術（如碳匯、CCUS等）",
+              "碳抵換與碳資源交易",
+              "內部碳定價與碳資產管理"
+            ],
+            "永續供應鏈管理": [
+              "範疇三碳排數據盤查與估算實務",
+              "供應鏈減碳風險評估與管理機制"
+            ]
+          }
+        };
+
+        function ExamSystem() {
+          // --- State ---
+          const [questions, setQuestions] = useState(() => {
+            try {
+              const saved = localStorage.getItem('myExamBank');
+              // 如果本地有存檔，則使用存檔；如果沒有，則使用空陣列
+              return saved ? JSON.parse(saved) : DEFAULT_QUESTIONS; 
+            } catch (e) {
+              console.error("Storage read error, starting with default questions.", e);
+              return DEFAULT_QUESTIONS;
+            }
+          });
+
+          const [activeTab, setActiveTab] = useState('add');
+          const [notification, setNotification] = useState(null);
+
+          // 新增題目 State
+          const [newQ, setNewQ] = useState({
+            subject: '',
+            section: '',
+            topic: '',
+            question: '',
+            options: ['', '', '', ''],
+            correctAnswer: '',
+            explanation: ''
+          });
+
+          // 批量匯入 State
+          const [bulkText, setBulkText] = useState('');
+          const [bulkPreview, setBulkPreview] = useState([]);
+          const fileInputRef = useRef(null);
+
+          // 測驗 State
+          const [quizConfig, setQuizConfig] = useState({ subject: 'all', mode: 'all' });
+          const [currentQuiz, setCurrentQuiz] = useState([]);
+          const [quizIndex, setQuizIndex] = useState(0);
+          const [showResult, setShowResult] = useState(false);
+          const [userSelection, setUserSelection] = useState(null);
+          const [score, setScore] = useState(0);
+
+          // --- Effects ---
+          useEffect(() => {
+            try {
+              localStorage.setItem('myExamBank', JSON.stringify(questions));
+            } catch (e) {
+              console.error("Storage error", e);
+            }
+          }, [questions]);
+
+          // --- Helpers ---
+          const showNotify = (msg) => {
+            setNotification(msg);
+            setTimeout(() => setNotification(null), 3000);
+          };
+
+          const getAvailableSubjects = () => {
+            const presetSubjects = Object.keys(EXAM_STRUCTURE);
+            const existingSubjects = questions.map(q => q.subject).filter(Boolean);
+            return [...new Set([...presetSubjects, ...existingSubjects])];
+          };
+
+          const getAvailableSections = (currentSubject) => {
+            let sections = [];
+            if (EXAM_STRUCTURE[currentSubject]) {
+              sections = [...Object.keys(EXAM_STRUCTURE[currentSubject])];
+            }
+            const existingSections = questions
+              .filter(q => q.subject === currentSubject)
+              .map(q => q.section)
+              .filter(Boolean);
+              
+            return [...new Set([...sections, ...existingSections])];
+          };
+
+          const getAvailableTopics = (currentSubject, currentSection) => {
+            let topics = [];
+            if (EXAM_STRUCTURE[currentSubject] && EXAM_STRUCTURE[currentSubject][currentSection]) {
+              topics = [...EXAM_STRUCTURE[currentSubject][currentSection]];
+            }
+            const existingTopics = questions
+              .filter(q => q.subject === currentSubject && q.section === currentSection)
+              .map(q => q.topic)
+              .filter(Boolean);
+
+            return [...new Set([...topics, ...existingTopics])];
+          };
+
+          // --- Handlers: Add Question ---
+          const handleAddOption = () => {
+            setNewQ({ ...newQ, options: [...newQ.options, ''] });
+          };
+
+          const handleOptionChange = (index, value) => {
+            const newOptions = [...newQ.options];
+            newOptions[index] = value;
+            setNewQ({ ...newQ, options: newOptions });
+          };
+
+          const handleRemoveOption = (index) => {
+            const newOptions = newQ.options.filter((_, i) => i !== index);
+            setNewQ({ ...newQ, options: newOptions });
+          };
+
+          const saveQuestion = () => {
+            if (!newQ.subject || !newQ.question || !newQ.correctAnswer) {
+              showNotify("請至少填寫：科目、題目、正確答案");
+              return;
+            }
+
+            const questionToAdd = {
+              ...newQ,
+              id: Date.now(),
+              type: 'single'
+            };
+
+            setQuestions([...questions, questionToAdd]);
+            showNotify("題目已新增！");
+            setNewQ({ 
+              ...newQ, 
+              question: '', 
+              options: ['', '', '', ''], 
+              correctAnswer: '', 
+              explanation: '' 
+            });
+          };
+
+          const deleteQuestion = (id) => {
+            if (confirm("確定要刪除這題嗎？")) {
+              setQuestions(questions.filter(q => q.id !== id));
+              showNotify("題目已刪除");
+            }
+          };
+
+          // --- Handlers: Bulk Import (CSV/Excel Copy Paste) ---
+          
+          // CSV Line Parser: handles quotes properly (e.g. "A, B, C")
+          const parseCSVRow = (rowStr, delimiter = ',') => {
+            const chars = rowStr.split('');
+            const cols = [];
+            let current = '';
+            let inQuote = false;
+
+            for (let i = 0; i < chars.length; i++) {
+              const c = chars[i];
+              if (c === '"') {
+                // Toggle quote state
+                if (inQuote && chars[i+1] === '"') {
+                   // Double quote escape
+                   current += '"';
+                   i++; 
+                } else {
+                   inQuote = !inQuote;
+                }
+              } else if (c === delimiter && !inQuote) {
+                cols.push(current.trim());
+                current = '';
+              } else {
+                current += c;
+              }
+            }
+            cols.push(current.trim());
+            return cols;
+          };
+
+          const processImportContent = (content) => {
+            if (!content.trim()) return;
+
+            // Detect delimiter: if many tabs are found, assume TSV (Excel copy paste or .txt)
+            // otherwise assume CSV (comma)
+            const firstLine = content.split('\n')[0];
+            const delimiter = firstLine.includes('\t') ? '\t' : ',';
+
+            const rows = content.split('\n').filter(row => row.trim() !== '');
+            const parsed = [];
+
+            rows.forEach((row, index) => {
+              // Use the parser to handle quotes safely if CSV
+              const cols = parseCSVRow(row, delimiter);
+              
+              // Expected structure:
+              // 0:Subject | 1:Section | 2:Topic | 3:Question | 4:OptA | 5:OptB | 6:OptC | 7:OptD | 8:CorrectAns | 9:Explanation
+              
+              if (cols.length < 9) {
+                return; 
+              }
+
+              // Try to determine the correct answer
+              let correct = cols[8];
+              // Strip quotes if present
+              if (correct && correct.startsWith('"') && correct.endsWith('"')) correct = correct.slice(1, -1);
+              
+              const opts = [cols[4], cols[5], cols[6], cols[7]];
+              if (correct && correct.toUpperCase() === 'A') correct = cols[4];
+              if (correct && correct.toUpperCase() === 'B') correct = cols[5];
+              if (correct && correct.toUpperCase() === 'C') correct = cols[6];
+              if (correct && correct.toUpperCase() === 'D') correct = cols[7];
+
+              parsed.push({
+                id: Date.now() + index + Math.random(), // ensure unique
+                subject: cols[0] || '未分類科目',
+                section: cols[1] || '',
+                topic: cols[2] || '',
+                question: cols[3],
+                options: opts.filter(o => o),
+                correctAnswer: correct,
+                explanation: cols[9] || '',
+                type: 'single'
+              });
+            });
+
+            setBulkPreview(parsed);
+            if (parsed.length > 0) {
+               showNotify(`成功解析 ${parsed.length} 筆資料！請檢視後按確認。`);
+            } else {
+               showNotify(`解析失敗，請檢查格式 (分隔符號: ${delimiter === '\t' ? 'Tab' : '逗號'})`);
+            }
+          };
+
+          const handleFileUpload = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const text = e.target.result;
+              setBulkText(text); // Also show in textarea
+              processImportContent(text);
+            };
+            reader.readAsText(file); // Default UTF-8
+            // Reset input
+            event.target.value = '';
+          };
+
+          const confirmBulkImport = () => {
+            if (bulkPreview.length === 0) {
+                showNotify("請先解析內容，才能進行匯入。");
+                return;
+            }
+            
+            // 進行狀態更新和確認
+            if (confirm(`確認匯入 ${bulkPreview.length} 題？匯入後題庫總數將變為 ${questions.length + bulkPreview.length} 題。`)) {
+              
+              const newQuestions = [...questions, ...bulkPreview];
+              setQuestions(newQuestions);
+              
+              // 優化：提供更明確的成功訊息和總數
+              showNotify(`✓ 成功匯入 ${bulkPreview.length} 題！目前題庫總數：${newQuestions.length} 題`);
+              
+              // 清理批量匯入的暫存狀態
+              setBulkText('');
+              setBulkPreview([]);
+              
+              // 由於狀態是異步更新，這裡的 console.log 只是輔助檢查
+              console.log(`Import confirmed. New total questions: ${newQuestions.length}`);
+            }
+          };
+
+          // --- Handlers: Quiz ---
+          const startQuiz = () => {
+            let qList = questions;
+            if (quizConfig.subject !== 'all') {
+              qList = questions.filter(q => q.subject === quizConfig.subject);
+            }
+            
+            qList = qList.sort(() => Math.random() - 0.5);
+
+            if (qList.length === 0) {
+              showNotify("該範圍沒有題目！");
+              return;
+            }
+
+            setCurrentQuiz(qList);
+            setQuizIndex(0);
+            setScore(0);
+            setShowResult(false);
+            setUserSelection(null);
+            setActiveTab('quiz_running');
+          };
+
+          const handleAnswerSubmit = (option) => {
+            setUserSelection(option);
+            setShowResult(true);
+            if (option === currentQuiz[quizIndex].correctAnswer) {
+              setScore(score + 1);
+            }
+          };
+
+          const nextQuestion = () => {
+            if (quizIndex < currentQuiz.length - 1) {
+              setQuizIndex(quizIndex + 1);
+              setShowResult(false);
+              setUserSelection(null);
+            } else {
+              setActiveTab('quiz_summary');
+            }
+          };
+
+          // --- Handlers: JSON Import/Export ---
+          const exportData = () => {
+            const dataStr = JSON.stringify(questions, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `iPAS_Exam_Bank_${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          };
+
+          const importData = (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              try {
+                const imported = JSON.parse(e.target.result);
+                if (Array.isArray(imported)) {
+                  if (confirm(`即將匯入 ${imported.length} 題，這會與現有題目合併，確定嗎？`)) {
+                     setQuestions([...questions, ...imported]);
+                     showNotify("匯入成功！");
+                  }
+                } else {
+                  showNotify("格式錯誤：檔案必須是 JSON 陣列");
+                }
+              } catch (err) {
+                showNotify("檔案讀取失敗");
+              }
+            };
+            reader.readAsText(file);
+          };
+
+          // --- Components ---
+
+          const Navigation = () => (
+            <div className="flex bg-slate-800 text-white p-2 overflow-x-auto space-x-2 shadow-md">
+              <button 
+                onClick={() => setActiveTab('add')} 
+                className={`flex items-center px-4 py-2 rounded-md transition whitespace-nowrap ${activeTab === 'add' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}
+              >
+                <Plus size={18} className="mr-2" /> 新增
+              </button>
+              <button 
+                onClick={() => setActiveTab('bank')} 
+                className={`flex items-center px-4 py-2 rounded-md transition whitespace-nowrap ${activeTab === 'bank' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}
+              >
+                <BookOpen size={18} className="mr-2" /> 題庫 ({questions.length})
+              </button>
+              <button 
+                onClick={() => setActiveTab('quiz')} 
+                className={`flex items-center px-4 py-2 rounded-md transition whitespace-nowrap ${activeTab === 'quiz' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}
+              >
+                <Play size={18} className="mr-2" /> 測驗
+              </button>
+              <button 
+                onClick={() => setActiveTab('import')} 
+                className={`flex items-center px-4 py-2 rounded-md transition whitespace-nowrap ${activeTab === 'import' ? 'bg-blue-600' : 'hover:bg-slate-700'}`}
+              >
+                <FolderOpen size={18} className="mr-2" /> 管理
+              </button>
+            </div>
+          );
+
+          const AddTab = () => {
+            const availableSubjects = getAvailableSubjects();
+            const availableSections = getAvailableSections(newQ.subject);
+            const availableTopics = getAvailableTopics(newQ.subject, newQ.section);
+
+            return (
+              <div className="max-w-3xl mx-auto p-4 bg-white rounded-lg shadow mt-4">
+                <h2 className="text-xl font-bold mb-4 text-slate-800 border-b pb-2 flex items-center">
+                  <Plus size={20} className="mr-2"/> 新增題目 (三層架構)
+                </h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center">
+                       <Layers size={14} className="mr-1"/> 層級 1：科目名稱
+                    </label>
+                    <input 
+                      list="subjects" 
+                      type="text" 
+                      className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none bg-blue-50"
+                      placeholder="選擇或輸入考科..."
+                      value={newQ.subject}
+                      onChange={(e) => setNewQ({...newQ, subject: e.target.value, section: '', topic: ''})}
+                    />
+                    <datalist id="subjects">
+                      {availableSubjects.map(s => <option key={s} value={s} />)}
+                    </datalist>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">層級 2：評鑑主題</label>
+                    <input 
+                      list="sections"
+                      type="text" 
+                      className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none bg-blue-50"
+                      placeholder="選擇或輸入主題..."
+                      value={newQ.section}
+                      onChange={(e) => setNewQ({...newQ, section: e.target.value, topic: ''})}
+                      disabled={!newQ.subject}
+                    />
+                    <datalist id="sections">
+                      {availableSections.map(s => <option key={s} value={s} />)}
+                    </datalist>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">層級 3：評鑑內容</label>
+                  <input 
+                    list="topics"
+                    type="text" 
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none bg-blue-50"
+                    placeholder="選擇或輸入內容..."
+                    value={newQ.topic}
+                    onChange={(e) => setNewQ({...newQ, topic: e.target.value})}
+                    disabled={!newQ.section}
+                  />
+                  <datalist id="topics">
+                      {availableTopics.map(t => <option key={t} value={t} />)}
+                  </datalist>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">題目內容</label>
+                  <textarea 
+                    className="w-full p-2 border rounded h-24 focus:ring-2 focus:ring-blue-500 outline-none"
+                    placeholder="請輸入題目敘述..."
+                    value={newQ.question}
+                    onChange={(e) => setNewQ({...newQ, question: e.target.value})}
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">選項 (點選圓圈設定正確答案)</label>
+                  {newQ.options.map((opt, idx) => (
+                    <div key={idx} className="flex items-center mb-2 gap-2">
+                      <input 
+                        type="radio" 
+                        name="correctAnswer" 
+                        checked={newQ.correctAnswer === opt && opt !== ''}
+                        onChange={() => setNewQ({...newQ, correctAnswer: opt})}
+                        className="w-4 h-4 text-blue-600 cursor-pointer"
+                      />
+                      <span className="text-gray-500 w-6 text-center">{String.fromCharCode(65+idx)}</span>
+                      <input 
+                        type="text" 
+                        className="flex-1 p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder={`選項 ${idx + 1}`}
+                        value={opt}
+                        onChange={(e) => handleOptionChange(idx, e.target.value)}
+                      />
+                      <button onClick={() => handleRemoveOption(idx)} className="text-red-400 hover:text-red-600"><Trash2 size={16}/></button>
+                    </div>
+                  ))}
+                  <button onClick={handleAddOption} className="text-sm text-blue-600 hover:text-blue-800 flex items-center mt-1">
+                    <Plus size={14} className="mr-1"/> 增加選項
+                  </button>
+                </div>
+
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">解析 (選填)</label>
+                  <textarea 
+                    className="w-full p-2 border rounded h-20 focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50"
+                    placeholder="輸入解析或法規來源..."
+                    value={newQ.explanation}
+                    onChange={(e) => setNewQ({...newQ, explanation: e.target.value})}
+                  />
+                </div>
+
+                <button 
+                  onClick={saveQuestion}
+                  className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition flex justify-center items-center shadow-md"
+                >
+                  <Save size={20} className="mr-2" /> 儲存題目
+                </button>
+              </div>
+            );
+          };
+
+          const BankTab = () => {
+            const [filterSubject, setFilterSubject] = useState('all');
+            const allSubjects = getAvailableSubjects();
+            
+            const filteredQuestions = filterSubject === 'all' 
+              ? questions 
+              : questions.filter(q => q.subject === filterSubject);
+
+            return (
+              <div className="max-w-4xl mx-auto p-4">
+                <div className="flex justify-between items-center mb-4 bg-white p-3 rounded shadow-sm">
+                  <h2 className="text-xl font-bold text-slate-800 flex items-center">
+                    <BookOpen size={20} className="mr-2"/> 題庫總覽
+                  </h2>
+                  <select 
+                    className="p-2 border rounded bg-slate-50 max-w-[200px] text-sm"
+                    value={filterSubject}
+                    onChange={(e) => setFilterSubject(e.target.value)}
+                  >
+                    <option value="all">顯示所有科目</option>
+                    {allSubjects.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+
+                <div className="space-y-4">
+                  {filteredQuestions.length === 0 ? (
+                    <div className="text-center text-gray-500 py-10 border-2 border-dashed border-gray-300 rounded-lg">
+                      目前沒有題目，請前往「新增」頁面輸入考題，或使用「管理」頁面的匯入功能。
+                    </div>
+                  ) : filteredQuestions.map((q, idx) => (
+                    <div key={q.id} className="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500 relative group">
+                      <button 
+                        onClick={() => deleteQuestion(q.id)}
+                        className="absolute top-4 right-4 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                      <div className="flex flex-wrap gap-2 mb-2 text-xs">
+                         <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded font-bold">{q.subject}</span>
+                         {q.section && <span className="bg-green-100 text-green-800 px-2 py-1 rounded">{q.section}</span>}
+                         {q.topic && <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded">{q.topic}</span>}
+                      </div>
+                      
+                      <h3 className="font-semibold text-slate-800 mb-2 mt-1">{idx + 1}. {q.question}</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-slate-600 mb-3">
+                        {q.options.map((opt, i) => (
+                          <div key={i} className={`p-2 rounded ${opt === q.correctAnswer ? 'bg-green-100 text-green-800 font-bold border border-green-200' : 'bg-gray-50'}`}>
+                            {String.fromCharCode(65+i)}. {opt}
+                          </div>
+                        ))}
+                      </div>
+                      {q.explanation && (
+                        <div className="text-sm text-slate-500 bg-slate-50 p-2 rounded border border-slate-100">
+                          <span className="font-bold text-slate-700">解析：</span>{q.explanation}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          };
+
+          const QuizSetupTab = () => {
+             const allSubjects = getAvailableSubjects();
+             return (
+                <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded-lg shadow text-center">
+                  <Play size={48} className="mx-auto text-blue-500 mb-4" />
+                  <h2 className="text-2xl font-bold mb-6">測驗設定</h2>
+                  
+                  <div className="mb-6 text-left">
+                    <label className="block text-sm font-medium text-slate-700 mb-2">請選擇測驗科目 (Level 1)</label>
+                    <select 
+                      className="w-full p-3 border rounded bg-slate-50"
+                      value={quizConfig.subject}
+                      onChange={(e) => setQuizConfig({...quizConfig, subject: e.target.value})}
+                    >
+                      <option value="all">全部考科 ({questions.length} 題)</option>
+                      {allSubjects.map(s => (
+                        <option key={s} value={s}>{s} ({questions.filter(q => q.subject === s).length} 題)</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button 
+                    onClick={startQuiz}
+                    className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition"
+                  >
+                    開始測驗
+                  </button>
+                </div>
+             );
+          };
+
+          const QuizRunning = () => {
+            const q = currentQuiz[quizIndex];
+            if (!q) return null;
+
+            return (
+              <div className="max-w-2xl mx-auto mt-6 p-6 bg-white rounded-lg shadow-lg">
+                <div className="mb-4 text-xs text-slate-500 flex flex-wrap gap-2 items-center border-b pb-2">
+                  <span className="font-bold text-blue-600">{q.subject}</span>
+                  {q.section && <span>/ {q.section}</span>}
+                  {q.topic && <span>/ {q.topic}</span>}
+                  <span className="ml-auto bg-gray-100 px-2 py-1 rounded text-gray-600">題數 {quizIndex + 1} / {currentQuiz.length}</span>
+                </div>
+                
+                <div className="mb-6">
+                  <h2 className="text-xl font-bold text-slate-800 leading-relaxed">{q.question}</h2>
+                </div>
+
+                <div className="space-y-3 mb-6">
+                  {q.options.map((opt, idx) => {
+                    let itemClass = "w-full text-left p-4 rounded border transition flex items-center ";
+                    if (showResult) {
+                      if (opt === q.correctAnswer) itemClass += "bg-green-100 border-green-500 text-green-900 font-bold";
+                      else if (opt === userSelection && opt !== q.correctAnswer) itemClass += "bg-red-100 border-red-500 text-red-900";
+                      else itemClass += "bg-gray-50 opacity-60";
+                    } else {
+                      itemClass += "hover:bg-blue-50 hover:border-blue-300 bg-white border-gray-200";
+                    }
+
+                    return (
+                      <button 
+                        key={idx} 
+                        onClick={() => !showResult && handleAnswerSubmit(opt)}
+                        disabled={showResult}
+                        className={itemClass}
+                      >
+                        <span className="w-6 h-6 rounded-full border border-current mr-3 flex items-center justify-center text-xs">
+                          {String.fromCharCode(65+idx)}
+                        </span>
+                        {opt}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {showResult && (
+                  <div className="animate-fade-in mb-6 p-4 bg-slate-50 rounded border border-slate-200">
+                    <div className={`flex items-center font-bold mb-2 ${userSelection === q.correctAnswer ? 'text-green-600' : 'text-red-600'}`}>
+                      {userSelection === q.correctAnswer ? <CheckCircle className="mr-2"/> : <XCircle className="mr-2"/>}
+                      {userSelection === q.correctAnswer ? "答對了！" : "答錯了！"}
+                    </div>
+                    <p className="text-slate-700"><span className="font-bold">正確答案：</span> {q.correctAnswer}</p>
+                    {q.explanation && (
+                      <p className="text-slate-600 mt-2 text-sm"><span className="font-bold">解析：</span> {q.explanation}</p>
+                    )}
+                  </div>
+                )}
+
+                {showResult && (
+                  <button 
+                    onClick={nextQuestion}
+                    className="w-full bg-slate-800 text-white py-3 rounded-lg hover:bg-slate-900 transition font-bold"
+                  >
+                    {quizIndex < currentQuiz.length - 1 ? "下一題" : "查看結果"}
+                  </button>
+                )}
+              </div>
+            );
+          };
+
+          const QuizSummary = () => (
+            <div className="max-w-md mx-auto mt-10 p-8 bg-white rounded-lg shadow text-center">
+              <div className="text-6xl mb-4">🎉</div>
+              <h2 className="text-2xl font-bold mb-2">測驗完成！</h2>
+              <p className="text-slate-500 mb-6">您在 {currentQuiz.length} 題中答對了 {score} 題。</p>
+              
+              <div className="text-4xl font-bold text-blue-600 mb-8">
+                {Math.round((score / currentQuiz.length) * 100)}分
+              </div>
+
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setActiveTab('quiz')}
+                  className="flex-1 bg-gray-200 text-gray-800 py-2 rounded hover:bg-gray-300"
+                >
+                  返回選單
+                </button>
+                <button 
+                  onClick={startQuiz}
+                  className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+                >
+                  再測一次
+                </button>
+              </div>
+            </div>
+          );
+
+          const ImportExportTab = () => (
+            <div className="max-w-4xl mx-auto p-4 space-y-8">
+              
+              {/* 1. Excel / CSV 快速匯入 */}
+              <section className="bg-white p-6 rounded-lg shadow border border-blue-200">
+                <h3 className="font-bold text-xl mb-4 flex items-center text-blue-800">
+                  <FileSpreadsheet className="mr-2"/> Excel / CSV 快速匯入
+                </h3>
+                <div className="bg-blue-50 p-4 rounded mb-4 text-sm text-blue-800">
+                  <p className="font-bold mb-2">使用說明：</p>
+                  <ol className="list-decimal list-inside space-y-1">
+                    <li>在 Excel 中整理考題，請依照以下 10 個欄位順序排列：</li>
+                    <li className="font-mono bg-white px-2 py-1 rounded border border-blue-200 inline-block text-xs mt-1 mb-1">
+                      科目 | 主題 | 內容 | 題目 | 選項A | 選項B | 選項C | 選項D | 正確答案 | 解析
+                    </li>
+                    <li>將 Excel 另存為 <strong>CSV (逗號分隔)</strong> 格式，或將 Excel 內容複製貼上到下方。</li>
+                  </ol>
+                </div>
+
+                <div className="mb-4 flex gap-4 items-end">
+                   <div className="flex-1">
+                     <label className="block text-sm font-bold text-slate-700 mb-2">方式一：直接上傳 CSV 檔案</label>
+                     <input 
+                       type="file" 
+                       accept=".csv,.txt"
+                       ref={fileInputRef}
+                       onChange={handleFileUpload}
+                       className="block w-full text-sm text-slate-500
+                         file:mr-4 file:py-2 file:px-4
+                         file:rounded-full file:border-0
+                         file:text-sm file:font-semibold
+                         file:bg-blue-50 file:text-blue-700
+                         hover:file:bg-blue-100
+                       "
+                     />
+                   </div>
+                </div>
+                
+                <label className="block text-sm font-bold text-slate-700 mb-2">方式二：複製貼上文字 (CSV 或 Tab 分隔)</label>
+                <textarea 
+                  className="w-full h-40 p-3 border rounded focus:ring-2 focus:ring-blue-500 text-sm font-mono whitespace-pre mb-4"
+                  placeholder="請在此處貼上 CSV 內容或 Excel 複製的文字..."
+                  value={bulkText}
+                  onChange={(e) => {
+                    setBulkText(e.target.value);
+                    // 當用戶貼上時，不用立即解析，等按下按鈕，或者可以加個debounce
+                  }}
+                />
+
+                <div className="flex gap-2">
+                   <button 
+                     onClick={() => processImportContent(bulkText)}
+                     className="bg-blue-600 text-white px-6 py-2 rounded font-bold hover:bg-blue-700 transition flex items-center"
+                   >
+                     <Clipboard className="mr-2" size={18}/> 解析內容
+                   </button>
+                   {bulkPreview.length > 0 && (
+                     <button 
+                       onClick={confirmBulkImport}
+                       className="bg-green-600 text-white px-6 py-2 rounded font-bold hover:bg-green-700 transition flex items-center"
+                     >
+                       <CheckCircle className="mr-2" size={18}/> 確認匯入 {bulkPreview.length} 題
+                     </button>
+                   )}
+                </div>
+
+                {/* 預覽區域 */}
+                {bulkPreview.length > 0 && (
+                  <div className="mt-6 border-t pt-4">
+                    <h4 className="font-bold text-gray-700 mb-2">匯入預覽 (前 3 筆)：</h4>
+                    <div className="space-y-2">
+                      {bulkPreview.slice(0, 3).map((q, i) => (
+                        <div key={i} className="bg-gray-50 p-3 rounded border text-sm">
+                          <div className="font-bold text-blue-600 mb-1">{q.subject} / {q.section}</div>
+                          <div>Q: {q.question}</div>
+                          <div className="text-gray-500 mt-1">Ans: {q.correctAnswer} | 說明: {q.explanation.slice(0, 30)}...</div>
+                        </div>
+                      ))}
+                      {bulkPreview.length > 3 && <div className="text-center text-gray-500 text-sm">...還有 {bulkPreview.length - 3} 筆資料</div>}
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              {/* 2. JSON 檔案管理 */}
+              <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white p-6 rounded-lg shadow border border-slate-200">
+                  <h3 className="font-bold text-lg mb-4 flex items-center text-slate-700">
+                    <Download className="mr-2"/> 匯出備份 (JSON)
+                  </h3>
+                  <p className="text-sm text-slate-500 mb-4">將完整的題庫備份下載為檔案，以防資料遺失。</p>
+                  <button onClick={exportData} className="w-full bg-slate-100 text-slate-700 py-2 rounded font-bold hover:bg-slate-200 transition border border-slate-300">
+                    下載題庫檔案
+                  </button>
+                </div>
+
+                <div className="bg-white p-6 rounded-lg shadow border border-slate-200">
+                  <h3 className="font-bold text-lg mb-4 flex items-center text-slate-700">
+                    <Upload className="mr-2"/> 匯入備份 (JSON)
+                  </h3>
+                  <p className="text-sm text-slate-500 mb-4">選擇之前匯出的 .json 備份檔。</p>
+                  <label className="block w-full cursor-pointer bg-slate-100 text-slate-700 py-2 rounded font-bold hover:bg-slate-200 transition text-center border border-slate-300">
+                    選擇檔案
+                    <input type="file" accept=".json" onChange={importData} className="hidden" />
+                  </label>
+                </div>
+              </section>
+
+              <div className="bg-yellow-50 p-4 rounded border border-yellow-200 text-sm text-yellow-800 flex items-start">
+                <div className="font-bold mr-2 text-lg">!</div>
+                <div>
+                   <strong>資料保存提示：</strong> 此系統目前是離線版，資料僅儲存在您的瀏覽器中。請務必定期使用「匯出備份」功能下載 JSON 檔，以免清除瀏覽器快取後資料遺失。
+                </div>
+              </div>
+            </div>
+          );
+
+          return (
+            <div className="min-h-screen bg-slate-100 font-sans pb-10">
+              <div className="bg-white shadow-sm sticky top-0 z-10">
+                <div className="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
+                  <div className="flex items-center text-slate-800 font-bold text-xl">
+                     <FileJson className="mr-2 text-blue-600"/> 
+                     iPAS淨零中級考試練習系統
+                  </div>
+                  {notification && (
+                    <div className="fixed top-20 right-4 bg-slate-800 text-white px-4 py-2 rounded shadow-lg animate-bounce z-50">
+                      {notification}
+                    </div>
+                  )}
+                </div>
+                <Navigation />
+              </div>
+
+              <div className="max-w-5xl mx-auto mt-6 px-4">
+                {activeTab === 'add' && <AddTab />}
+                {activeTab === 'bank' && <BankTab />}
+                {activeTab === 'quiz' && <QuizSetupTab />}
+                {activeTab === 'quiz_running' && <QuizRunning />}
+                {activeTab === 'quiz_summary' && <QuizSummary />}
+                {activeTab === 'import' && <ImportExportTab />}
+              </div>
+            </div>
+          );
+        }
+        
+        // 渲染 React App
+        ReactDOM.render(<ExamSystem />, document.getElementById('root'));
+
+    </script>
+</body>
+</html>
