@@ -48,6 +48,8 @@
         const MessageCircleQuestion = (p) => <IconBase {...p}><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></IconBase>;
         const X = (p) => <IconBase {...p}><path d="M18 6 6 18"/><path d="M6 6 18 18"/></IconBase>;
         const AlertTriangle = (p) => <IconBase {...p}><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></IconBase>;
+        const ChevronUp = (p) => <IconBase {...p}><polyline points="18 15 12 9 6 15"/></IconBase>;
+        const ChevronDown = (p) => <IconBase {...p}><polyline points="6 9 12 15 18 9"/></IconBase>;
 
         const EXAM_STRUCTURE = {
           "考科一：節能減碳技術實務": {
@@ -76,9 +78,8 @@
           const [quizConfig, setQuizConfig] = useState({ subject: 'all', mode: 'normal' });
           const [currentQuiz, setCurrentQuiz] = useState([]);
           const [quizIndex, setQuizIndex] = useState(0);
-          const [showResult, setShowResult] = useState(false);
-          const [userSelection, setUserSelection] = useState(null);
-          const [score, setScore] = useState(0);
+          // quizAnswers: { [questionId]: userSelection }
+          const [quizAnswers, setQuizAnswers] = useState({});
           const [isQuizActive, setIsQuizActive] = useState(false);
 
           useEffect(() => { localStorage.setItem('myExamBank_v2', JSON.stringify(questions)); }, [questions]);
@@ -151,16 +152,32 @@
             if (quizConfig.subject !== 'all') qList = qList.filter(q => q.subject === quizConfig.subject);
             if (!qList.length) return showNotify("無題目", 'error');
             setCurrentQuiz(qList.sort(() => Math.random() - 0.5));
-            setQuizIndex(0); setScore(0); setShowResult(false); setUserSelection(null); setIsQuizActive(true); setActiveTab('quiz_running');
+            setQuizIndex(0); 
+            setQuizAnswers({}); // Reset answers
+            setIsQuizActive(true); 
+            setActiveTab('quiz_running');
           };
 
           const handleAnswerSubmit = (opt) => {
-            setUserSelection(opt); setShowResult(true);
             const q = currentQuiz[quizIndex];
+            // Prevent changing answer if already answered (optional, but requested for 'Next/Prev' stability)
+            if (quizAnswers[q.id]) return;
+
+            setQuizAnswers(prev => ({...prev, [q.id]: opt}));
+            
+            // Update Wrong Bank
             if (opt === q.correctAnswer) {
-                setScore(s => s + 1);
                 if (wrongBank.includes(q.id)) setWrongBank(prev => prev.filter(id => id !== q.id));
-            } else if (!wrongBank.includes(q.id)) setWrongBank(prev => [...prev, q.id]);
+            } else if (!wrongBank.includes(q.id)) {
+                setWrongBank(prev => [...prev, q.id]);
+            }
+          };
+
+          // Calculate score based on quizAnswers
+          const calculateScore = () => {
+              return currentQuiz.reduce((acc, q) => {
+                  return (quizAnswers[q.id] === q.correctAnswer) ? acc + 1 : acc;
+              }, 0);
           };
 
           const ProgressBar = ({ c, t }) => <div className="w-full bg-slate-200 rounded-full h-2.5 mb-6 overflow-hidden"><div className={`bg-${ThemeColor}-600 h-2.5 rounded-full transition-all duration-500`} style={{ width: `${Math.round(((c + 1) / t) * 100)}%` }}></div></div>;
@@ -267,35 +284,69 @@
                       <button onClick={startQuiz} className={`w-full bg-${ThemeColor}-600 text-white py-4 rounded-xl font-bold text-lg hover:shadow-lg`}>開始</button>
                    </div>
                 )}
-                {activeTab === 'quiz_running' && currentQuiz[quizIndex] && (
-                   <div className="max-w-3xl mx-auto mt-4 p-6 bg-white rounded-2xl shadow-xl border border-slate-100 animate-fade-in min-h-[60vh] flex flex-col">
-                      <div className="flex justify-between mb-6">
-                          <span className="text-xs font-bold text-slate-400 uppercase">Q {quizIndex + 1} / {currentQuiz.length}</span>
-                          <button onClick={()=>setActiveTab('quiz_summary')} className="text-slate-400 hover:text-red-500 text-sm font-bold">結束</button>
-                      </div>
-                      <ProgressBar c={quizIndex} t={currentQuiz.length} />
-                      <h2 className="text-xl md:text-2xl font-bold text-slate-800 mb-8 flex-grow">{currentQuiz[quizIndex].question}</h2>
-                      <div className="space-y-3 mb-8">
-                         {currentQuiz[quizIndex].options.map((opt, i) => (
-                             <button key={i} onClick={() => !showResult && handleAnswerSubmit(opt)} disabled={showResult} className={`w-full text-left p-4 rounded-xl border-2 transition-all flex items-center ${showResult ? (opt===currentQuiz[quizIndex].correctAnswer?'border-green-500 bg-green-50':(opt===userSelection?'border-red-500 bg-red-50':'border-slate-100 opacity-50')) : `border-slate-200 hover:border-${ThemeColor}-300 hover:bg-${ThemeColor}-50`}`}>
-                                <span className="w-8 h-8 rounded-full border-2 mr-4 flex items-center justify-center font-bold">{String.fromCharCode(65+i)}</span>{opt}
-                             </button>
-                         ))}
-                      </div>
-                      {showResult && (
-                          <div className="animate-slide-up bg-slate-50 -mx-6 -mb-6 p-6 rounded-b-2xl border-t border-slate-200">
-                              <div className={`font-bold text-lg mb-2 ${userSelection===currentQuiz[quizIndex].correctAnswer?'text-green-600':'text-red-500'}`}>{userSelection===currentQuiz[quizIndex].correctAnswer?'答對':'答錯'}</div>
-                              <div className="text-slate-600 mb-4 text-sm">解析：{currentQuiz[quizIndex].explanation||"無"}</div>
-                              <button onClick={() => quizIndex < currentQuiz.length - 1 ? (setQuizIndex(i=>i+1),setShowResult(false),setUserSelection(null)) : setActiveTab('quiz_summary')} className="w-full bg-slate-800 text-white py-4 rounded-xl font-bold text-lg">下一步</button>
+                {activeTab === 'quiz_running' && currentQuiz[quizIndex] && (() => {
+                   const q = currentQuiz[quizIndex];
+                   const userAnswer = quizAnswers[q.id]; // Get answer from state
+                   const hasAnswered = !!userAnswer;
+                   
+                   return (
+                     <div className="relative">
+                       {/* Side Navigation Buttons - Fixed Position */}
+                       <div className="fixed right-4 md:right-8 top-1/2 -translate-y-1/2 flex flex-col gap-4 z-50">
+                          <button 
+                            onClick={() => setQuizIndex(i => Math.max(0, i - 1))} 
+                            disabled={quizIndex === 0}
+                            className={`p-3 rounded-full shadow-lg transition-transform hover:scale-110 flex items-center justify-center ${quizIndex === 0 ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-white text-slate-700 hover:text-blue-600 border border-slate-200'}`}
+                            title="上一題"
+                          >
+                            <ChevronUp size={24} />
+                          </button>
+                          <button 
+                            onClick={() => {
+                                if (quizIndex < currentQuiz.length - 1) {
+                                    setQuizIndex(i => i + 1);
+                                } else if (hasAnswered) {
+                                    setActiveTab('quiz_summary');
+                                }
+                            }} 
+                            disabled={!hasAnswered && quizIndex === currentQuiz.length - 1}
+                            className={`p-3 rounded-full shadow-lg transition-transform hover:scale-110 flex items-center justify-center ${(!hasAnswered && quizIndex === currentQuiz.length - 1) ? 'bg-slate-200 text-slate-400' : `bg-${ThemeColor}-600 text-white hover:bg-${ThemeColor}-700`}`}
+                            title="下一題"
+                          >
+                            <ChevronDown size={24} />
+                          </button>
+                       </div>
+
+                       <div className="max-w-3xl mx-auto mt-4 p-6 bg-white rounded-2xl shadow-xl border border-slate-100 animate-fade-in min-h-[60vh] flex flex-col">
+                          <div className="flex justify-between mb-6">
+                              <span className="text-xs font-bold text-slate-400 uppercase">Q {quizIndex + 1} / {currentQuiz.length}</span>
+                              <button onClick={()=>setActiveTab('quiz_summary')} className="text-slate-400 hover:text-red-500 text-sm font-bold">結束</button>
                           </div>
-                      )}
-                   </div>
-                )}
+                          <ProgressBar c={quizIndex} t={currentQuiz.length} />
+                          <h2 className="text-xl md:text-2xl font-bold text-slate-800 mb-8 flex-grow">{q.question}</h2>
+                          <div className="space-y-3 mb-8">
+                             {q.options.map((opt, i) => (
+                                 <button key={i} onClick={() => !hasAnswered && handleAnswerSubmit(opt)} disabled={hasAnswered} className={`w-full text-left p-4 rounded-xl border-2 transition-all flex items-center ${hasAnswered ? (opt===q.correctAnswer?'border-green-500 bg-green-50':(opt===userAnswer?'border-red-500 bg-red-50':'border-slate-100 opacity-50')) : `border-slate-200 hover:border-${ThemeColor}-300 hover:bg-${ThemeColor}-50`}`}>
+                                    <span className="w-8 h-8 rounded-full border-2 mr-4 flex items-center justify-center font-bold">{String.fromCharCode(65+i)}</span>{opt}
+                                 </button>
+                             ))}
+                          </div>
+                          {hasAnswered && (
+                              <div className="animate-slide-up bg-slate-50 -mx-6 -mb-6 p-6 rounded-b-2xl border-t border-slate-200">
+                                  <div className={`font-bold text-lg mb-2 ${userAnswer===q.correctAnswer?'text-green-600':'text-red-500'}`}>{userAnswer===q.correctAnswer?'答對':'答錯'}</div>
+                                  <div className="text-slate-600 mb-4 text-sm">解析：{q.explanation||"無"}</div>
+                                  <button onClick={() => quizIndex < currentQuiz.length - 1 ? setQuizIndex(i=>i+1) : setActiveTab('quiz_summary')} className="w-full bg-slate-800 text-white py-4 rounded-xl font-bold text-lg">下一步</button>
+                              </div>
+                          )}
+                       </div>
+                     </div>
+                   );
+                })()}
                 {activeTab === 'quiz_summary' && (
                   <div className="max-w-md mx-auto mt-10 p-10 bg-white rounded-2xl shadow-xl text-center animate-fade-in border border-slate-100">
                      <div className="text-6xl mb-6 animate-bounce-slow">🎉</div>
-                     <div className={`text-5xl font-black text-${ThemeColor}-600 mb-2`}>{Math.round((score/currentQuiz.length)*100)}分</div>
-                     <div className="text-slate-500 mb-8">答對 {score} / {currentQuiz.length}</div>
+                     <div className={`text-5xl font-black text-${ThemeColor}-600 mb-2`}>{Math.round((calculateScore()/currentQuiz.length)*100)}分</div>
+                     <div className="text-slate-500 mb-8">答對 {calculateScore()} / {currentQuiz.length}</div>
                      <div className="flex gap-3">
                          <button onClick={()=>setActiveTab('quiz')} className="flex-1 bg-slate-100 py-3 rounded-xl font-bold">回選單</button>
                          <button onClick={startQuiz} className={`flex-1 bg-${ThemeColor}-600 text-white py-3 rounded-xl font-bold`}>再測一次</button>
