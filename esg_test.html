@@ -292,7 +292,7 @@
                    return (
                      <div className="relative">
                        {/* Side Navigation Buttons - Fixed Position */}
-                       <div className="fixed right-4 md:right-8 top-1/2 -translate-y-1/2 flex flex-col gap-4 z-50">
+                       <div className="fixed top-1/2 -translate-y-1/2 z-50 flex flex-col gap-4 right-4 lg:right-auto lg:left-1/2 lg:ml-[26rem]">
                           <button 
                             onClick={() => setQuizIndex(i => Math.max(0, i - 1))} 
                             disabled={quizIndex === 0}
@@ -357,6 +357,10 @@
                 )}
               </div>
               
+              <div className="mt-12 text-center text-slate-400 text-sm font-medium opacity-60">
+                  僅供 iPAS 淨零中級讀書會 練習使用，試題與解析僅供參考！
+              </div>
+
               {(() => {
                  const [o, sO] = useState(false);
                  return (
