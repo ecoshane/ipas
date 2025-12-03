@@ -64,9 +64,23 @@
           }
         };
 
+        // 預設的範例題目
+        const DEFAULT_QUESTIONS = [
+            {
+                id: 1715424000000,
+                subject: "考科二：碳管理制度實務",
+                section: "組織自願減量實務",
+                topic: "國內外自願減量專案與抵換制度",
+                question: "依據我國《氣候變遷因應法》，經中央主管機關核准之增量抵換用途，其抵換比率為何？",
+                options: ["1:1.1", "1:1.2", "1:1.15", "1:1.3"],
+                correctAnswer: "1:1.15",
+                explanation: "依據我國《溫室氣體增量抵換處理原則》，新設或變更的排放源需抵換其增量的 1.15 倍 (即 1:1.15)，以確保抵換具有「淨減量」效果。"
+            }
+        ];
+
         function ExamSystem() {
           const [questions, setQuestions] = useState(() => {
-            try { return JSON.parse(localStorage.getItem('myExamBank_v2')) || []; } catch { return []; }
+            try { return JSON.parse(localStorage.getItem('myExamBank_v2')) || DEFAULT_QUESTIONS; } catch { return DEFAULT_QUESTIONS; }
           });
           const [wrongBank, setWrongBank] = useState(() => {
              try { return JSON.parse(localStorage.getItem('myWrongBank_v2')) || []; } catch { return []; }
@@ -122,6 +136,17 @@
              const wb = XLSX.utils.book_new();
              XLSX.utils.book_append_sheet(wb, ws, "題庫");
              XLSX.writeFile(wb, `iPAS_Export_${new Date().toISOString().slice(0,10)}.xlsx`);
+          };
+
+          const downloadTemplate = () => {
+             const headers = [['科目', '主題', '內容', '題目', 'A', 'B', 'C', 'D', '正確答案', '解析']];
+             const sampleData = [
+                 ['考科二：碳管理制度實務', '組織自願減量實務', '國內外自願減量專案與抵換制度', '依據我國《氣候變遷因應法》，經中央主管機關核准之增量抵換用途，其抵換比率為何？', '1:1.1', '1:1.2', '1:1.15', '1:1.3', '1:1.15', '依據我國《溫室氣體增量抵換處理原則》，新設或變更的排放源需抵換其增量的 1.15 倍 (即 1:1.15)，以確保抵換具有「淨減量」效果。']
+             ];
+             const ws = XLSX.utils.aoa_to_sheet([...headers, ...sampleData]);
+             const wb = XLSX.utils.book_new();
+             XLSX.utils.book_append_sheet(wb, ws, "範例格式");
+             XLSX.writeFile(wb, "iPAS_匯入範例格式.xlsx");
           };
 
           const handleExcelUpload = (e) => {
@@ -255,6 +280,30 @@
                    <div className="max-w-4xl mx-auto p-4 space-y-6 animate-fade-in">
                       <section className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                           <h3 className="font-bold text-xl mb-4 text-slate-800 flex items-center"><FileSpreadsheet className="mr-2 text-green-600"/> 匯入題庫 (Excel)</h3>
+                          
+                          <div className="bg-blue-50 p-4 rounded-lg text-sm text-blue-800 border border-blue-100 mb-4">
+                              <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-3">
+                                <p className="font-bold flex items-center"><AlertTriangle size={16} className="mr-1"/> Excel 欄位順序：</p>
+                                <button onClick={downloadTemplate} className="bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm font-bold transition shadow-sm flex items-center whitespace-nowrap">
+                                    <Download size={16} className="mr-2"/> 下載範例檔
+                                </button>
+                              </div>
+                              <div className="w-full overflow-x-auto pb-2">
+                                <div className="flex gap-2 min-w-max">
+                                    <div className="bg-white px-3 py-2 rounded border border-blue-200 font-mono text-xs shadow-sm whitespace-nowrap"><span className="font-bold mr-1 text-blue-600">A</span>科目</div>
+                                    <div className="bg-white px-3 py-2 rounded border border-blue-200 font-mono text-xs shadow-sm whitespace-nowrap"><span className="font-bold mr-1 text-blue-600">B</span>主題</div>
+                                    <div className="bg-white px-3 py-2 rounded border border-blue-200 font-mono text-xs shadow-sm whitespace-nowrap"><span className="font-bold mr-1 text-blue-600">C</span>內容</div>
+                                    <div className="bg-white px-3 py-2 rounded border border-blue-200 font-mono text-xs shadow-sm whitespace-nowrap"><span className="font-bold mr-1 text-blue-600">D</span>題目</div>
+                                    <div className="bg-white px-3 py-2 rounded border border-blue-200 font-mono text-xs shadow-sm whitespace-nowrap"><span className="font-bold mr-1 text-blue-600">E</span>選項A</div>
+                                    <div className="bg-white px-3 py-2 rounded border border-blue-200 font-mono text-xs shadow-sm whitespace-nowrap"><span className="font-bold mr-1 text-blue-600">F</span>選項B</div>
+                                    <div className="bg-white px-3 py-2 rounded border border-blue-200 font-mono text-xs shadow-sm whitespace-nowrap"><span className="font-bold mr-1 text-blue-600">G</span>選項C</div>
+                                    <div className="bg-white px-3 py-2 rounded border border-blue-200 font-mono text-xs shadow-sm whitespace-nowrap"><span className="font-bold mr-1 text-blue-600">H</span>選項D</div>
+                                    <div className="bg-white px-3 py-2 rounded border border-blue-200 font-mono text-xs shadow-sm whitespace-nowrap"><span className="font-bold mr-1 text-blue-600">I</span>正確答案</div>
+                                    <div className="bg-white px-3 py-2 rounded border border-blue-200 font-mono text-xs shadow-sm whitespace-nowrap"><span className="font-bold mr-1 text-blue-600">J</span>解析</div>
+                                </div>
+                              </div>
+                          </div>
+
                           <input type="file" accept=".xlsx,.xls" onChange={handleExcelUpload} className={`block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-${ThemeColor}-50 file:text-${ThemeColor}-700 hover:file:bg-${ThemeColor}-100`}/>
                           {bulkPreview.length > 0 && <button onClick={()=>{setQuestions([...questions,...bulkPreview]);setBulkPreview([]);showNotify(`已匯入 ${bulkPreview.length} 題`)}} className="mt-4 bg-green-600 text-white px-6 py-2 rounded-lg font-bold flex items-center"><CheckCircle size={18} className="mr-2"/> 確認匯入</button>}
                       </section>
@@ -348,7 +397,7 @@
                   <div className="max-w-md mx-auto mt-10 p-10 bg-white rounded-2xl shadow-xl text-center animate-fade-in border border-slate-100">
                      <div className="text-6xl mb-6 animate-bounce-slow">🎉</div>
                      <div className={`text-5xl font-black text-${ThemeColor}-600 mb-2`}>{Math.round((calculateScore()/currentQuiz.length)*100)}分</div>
-                     <div className="text-slate-500 mb-8">答對 {calculateScore()} / {currentQuiz.length}</div>
+                     <div className="text-slate-500 mb-8">答對 {calculateScore()} / {currentQuiz.length} 題</div>
                      <div className="flex gap-3">
                          <button onClick={()=>setActiveTab('quiz')} className="flex-1 bg-slate-100 py-3 rounded-xl font-bold">回選單</button>
                          <button onClick={startQuiz} className={`flex-1 bg-${ThemeColor}-600 text-white py-3 rounded-xl font-bold`}>再測一次</button>
@@ -358,7 +407,7 @@
               </div>
               
               <div className="mt-12 text-center text-slate-400 text-sm font-medium opacity-60">
-                  僅供 iPAS 淨零中級讀書會 練習使用，試題與解析僅供參考！
+                  僅供 iPAS 淨零中級讀書會 使用
               </div>
 
               {(() => {
