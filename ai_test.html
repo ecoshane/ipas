@@ -105,6 +105,7 @@
         const Copy = (p) => <IconBase {...p}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></IconBase>;
         const CheckSquare = (p) => <IconBase {...p}><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></IconBase>;
         const Settings = (p) => <IconBase {...p}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></IconBase>;
+        const Database = (p) => <IconBase {...p}><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></IconBase>;
 
         // 預設幾題範例 (不含大量考古題)
         const DEFAULT_QUESTIONS = [
@@ -165,18 +166,23 @@
         };
 
         function ExamSystem() {
+          // 修改 Key 以避免與淨零規劃師題庫混淆
+          const DB_KEY = 'myExamBank_AI_Simple_v1';
+          const WRONG_KEY = 'myWrongBank_AI_Simple_v1';
+          const STATS_KEY = 'myExamStats_AI_Simple';
+
           const [questions, setQuestions] = useState(() => {
             try { 
-                const saved = JSON.parse(localStorage.getItem('myExamBank_AI_Simple_v1'));
+                const saved = JSON.parse(localStorage.getItem(DB_KEY));
                 if (!saved || saved.length === 0) return DEFAULT_QUESTIONS;
                 return saved;
             } catch { return DEFAULT_QUESTIONS; }
           });
           const [wrongBank, setWrongBank] = useState(() => {
-             try { return JSON.parse(localStorage.getItem('myWrongBank_AI_Simple_v1')) || []; } catch { return []; }
+             try { return JSON.parse(localStorage.getItem(WRONG_KEY)) || []; } catch { return []; }
           });
           const [stats, setStats] = useState(() => {
-             try { return JSON.parse(localStorage.getItem('myExamStats_AI_Simple')) || {}; } catch { return {}; }
+             try { return JSON.parse(localStorage.getItem(STATS_KEY)) || {}; } catch { return {}; }
           });
           const [activeTab, setActiveTab] = useState('intro');
           const [notification, setNotification] = useState(null);
@@ -200,9 +206,9 @@
           const [timer, setTimer] = useState(0);
           const timerRef = useRef(null);
 
-          useEffect(() => { localStorage.setItem('myExamBank_AI_Simple_v1', JSON.stringify(questions)); }, [questions]);
-          useEffect(() => { localStorage.setItem('myWrongBank_AI_Simple_v1', JSON.stringify(wrongBank)); }, [wrongBank]);
-          useEffect(() => { localStorage.setItem('myExamStats_AI_Simple', JSON.stringify(stats)); }, [stats]);
+          useEffect(() => { localStorage.setItem(DB_KEY, JSON.stringify(questions)); }, [questions]);
+          useEffect(() => { localStorage.setItem(WRONG_KEY, JSON.stringify(wrongBank)); }, [wrongBank]);
+          useEffect(() => { localStorage.setItem(STATS_KEY, JSON.stringify(stats)); }, [stats]);
 
           const showNotify = (msg, type = 'success') => {
             setNotification({ msg, type });
@@ -320,9 +326,13 @@
                       syllabusStr += `${chapter}(${details.join('、')})、`;
                   });
               });
-              let specificInst = "題目類型以「單選題」為主。";
-              
-              const promptText = `請幫我出 10 題 iPAS AI應用規劃師「${level}」的模擬試題。\n\n考科範圍與細項如下：${syllabusStr}\n\n${specificInst}\n\n※ 模擬試題僅供參考，非正式考題內容。\n\n請嚴格遵守以下 JSON 格式回傳，直接給出 JSON 陣列，不要有 Markdown code block (例如 \`\`\`json)，也不要其他文字：\n[\n  {\n    "level": "${level}",\n    "subject": "科目名稱",\n    "section": "章節",\n    "topic": "細項",\n    "question": "題目敘述",\n    "options": ["選項1", "選項2", "選項3", "選項4"],\n    "correctAnswer": "選項1",\n    "explanation": "詳解"\n  }\n]`;
+              let specificInst = "";
+              if (level === '中級') {
+                  specificInst = "題目類型請包含「單選題」、「複選題」以及「情境題」(Scenario-based, 包含題幹描述)。若是複選題，請在題目後方標註「(複選)」，並確保 correctAnswer 格式為「選項1, 選項2...」之類的形式。情境題請將情境描述寫在 'question' 欄位中。";
+              } else {
+                  specificInst = "題目類型以「單選題」為主，著重營運智慧與數據分析的基本定義、流程與計算概念。";
+              }
+              const promptText = `請幫我出 10 題 iPAS 營運智慧分析師「${level}」的模擬試題。\n\n考科範圍與細項如下：${syllabusStr}\n\n${specificInst}\n\n※ 模擬試題僅供參考，非正式考題內容。\n\n請嚴格遵守以下 JSON 格式回傳，直接給出 JSON 陣列，不要有 Markdown code block (例如 \`\`\`json)，也不要其他文字：\n[\n  {\n    "level": "${level}",\n    "subject": "科目名稱",\n    "section": "章節",\n    "topic": "細項",\n    "question": "題目敘述 (複選)",\n    "options": ["選項1", "選項2", "選項3", "選項4"],\n    "correctAnswer": "選項1, 選項2",\n    "explanation": "詳解"\n  }\n]`;
               
               const el = document.createElement('textarea');
               el.value = promptText;
@@ -336,22 +346,22 @@
           const exportToExcel = () => { 
              if(!questions.length) return showNotify('無資料可匯出', 'error');
              const ws = XLSX.utils.json_to_sheet(questions.map(q => ({
-                 '等級': q.level || '中級', '科目': q.subject, '主題': q.section, '內容': q.topic, '題目': q.question,
-                 '選項A': q.options[0], '選項B': q.options[1], '選項C': q.options[2], '選項D': q.options[3],
+                 '等級': q.level || '初級', '科目': q.subject, '主題': q.section, '內容': q.topic, '題目': q.question,
+                 'A': q.options[0], 'B': q.options[1], 'C': q.options[2], 'D': q.options[3],
                  '正確答案': q.correctAnswer, '解析': q.explanation
              })));
              const wb = XLSX.utils.book_new();
              XLSX.utils.book_append_sheet(wb, ws, "題庫");
-             XLSX.writeFile(wb, `iPAS_AI_Export_${new Date().toISOString().slice(0,10)}.xlsx`);
+             XLSX.writeFile(wb, `iPAS_BI_Export_${new Date().toISOString().slice(0,10)}.xlsx`);
           };
 
           const downloadTemplate = () => {
-             const headers = [['等級', '科目', '主題', '內容', '題目', '選項A', '選項B', '選項C', '選項D', '正確答案', '解析']];
-             const sampleData = [['中級', '考科三：機器學習技術與應用', '機器學習演算法', '監督式學習', '下列何者為非監督式學習算法?', '線性回歸', 'K-Means', '決策樹', 'SVM', 'K-Means', 'K-Means 為分群算法']];
+             const headers = [['等級', '科目', '主題', '內容', '題目', 'A', 'B', 'C', 'D', '正確答案', '解析']];
+             const sampleData = [['初級', '考科一：營運智慧架構與應用', '資料架構與管理', 'ETL', 'ETL流程不包含？', 'Extraction', 'Transformation', 'Loading', 'Analysis', 'Analysis', 'ETL為萃取、轉換、載入。']];
              const ws = XLSX.utils.aoa_to_sheet([...headers, ...sampleData]);
              const wb = XLSX.utils.book_new();
              XLSX.utils.book_append_sheet(wb, ws, "範例格式");
-             XLSX.writeFile(wb, "iPAS_AI_題庫範例.xlsx");
+             XLSX.writeFile(wb, "iPAS_BI_題庫範例.xlsx");
           };
 
           const handleExcelUpload = (e) => {
@@ -363,21 +373,22 @@
                     const ws = workbook.Sheets[workbook.SheetNames[0]];
                     const rows = XLSX.utils.sheet_to_json(ws, {header: 1});
                     const parsed = [];
-                    // Simple parser for Excel array of arrays
-                    // Assuming headers: 等級, 科目, 主題, 內容, 題目, 選項A, 選項B, 選項C, 選項D, 正確答案, 解析
                     rows.forEach((r, i) => {
-                        if (r.length < 5 || String(r[0]).includes('等級')) return; // skip header
+                        if (r.length < 5 || String(r[0]).includes('等級')) return;
+                        const isNew = ["初級", "中級"].includes(String(r[0]).trim());
+                        let lvl = isNew ? r[0] : "初級";
+                        let sub = isNew ? r[1] : r[0];
+                        let sec = isNew ? r[2] : r[1];
+                        let top = isNew ? r[3] : r[2];
+                        let qT = isNew ? r[4] : r[3];
+                        let ops = isNew ? [r[5],r[6],r[7],r[8]] : [r[4],r[5],r[6],r[7]];
+                        let cor = isNew ? r[9] : r[8];
+                        let exp = isNew ? r[10] : r[9];
                         
-                        let lvl = r[0] || "中級";
-                        let sub = r[1] || "未分類";
-                        let sec = r[2] || "";
-                        let top = r[3] || "";
-                        let qT = r[4];
-                        let ops = [r[5], r[6], r[7], r[8]].filter(o => o);
-                        let cor = r[9];
-                        let exp = r[10];
+                        const cleanOpts = ops.filter(o=>o&&String(o).trim()).map(String);
+                        let c = cor ? String(cor).trim() : '';
                         
-                        if(qT && cor) parsed.push({id: Date.now()+i, level: lvl, subject: sub, section: sec, topic: top, question: qT, options: ops, correctAnswer: String(cor), explanation: exp||''});
+                        if(qT) parsed.push({id: Date.now()+i, level: lvl, subject: sub||'未分類', section: sec||'', topic: top||'', question: qT, options: cleanOpts, correctAnswer: c, explanation: exp||''});
                     });
                     setBulkPreview(parsed);
                     parsed.length ? showNotify(`解析 ${parsed.length} 筆`) : showNotify("無資料", 'error');
@@ -403,7 +414,7 @@
             setIsQuizActive(true); 
             setActiveTab('quiz_running');
             if (quizConfig.mode === 'mock') {
-                setTimer(EXAM_DATA[quizConfig.level].info.time.includes('90') ? 90*60 : 60*60); 
+                setTimer(75 * 60); // 初級每科75分鐘
             }
           };
 
@@ -504,7 +515,7 @@
                 <div className="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
                     <div className="flex items-center">
                         <div className={`bg-gradient-to-br from-${ThemeColor}-600 to-${ThemeColor}-700 p-2 rounded-xl mr-3 shadow-lg shadow-${ThemeColor}-200`}>
-                            <Bot className="text-white" size={24}/>
+                            <Database className="text-white" size={24}/>
                         </div>
                         <div className="font-black text-xl tracking-tight text-slate-800 hidden md:block">{AppTitle}</div>
                     </div>
@@ -546,7 +557,7 @@
                                 </div>
                                 <div className="mt-6 p-4 bg-slate-50 rounded text-xs text-slate-500 border border-slate-100"><strong>及格標準：</strong> {EXAM_DATA["初級"].info.passing}</div>
                             </div>
-                            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 border-t-4 border-purple-500 h-full flex flex-col">
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 border-t-4 border-purple-500 h-full flex flex-col opacity-90">
                                 <h3 className="font-bold text-lg mb-4 text-slate-800 flex items-center"><Book size={20} className="mr-2 text-purple-600"/>中級 鑑定考科</h3>
                                 <div className="mb-4 bg-purple-50 p-3 rounded-lg border border-purple-100 text-xs space-y-2 text-purple-800">
                                     <div className="flex items-center"><Clock size={14} className="mr-2"/> {EXAM_DATA["中級"].info.time}</div>
@@ -600,25 +611,31 @@
                 )}
                 {activeTab === 'import' && (
                    <div className="max-w-4xl mx-auto p-4 space-y-6 animate-fade-in">
-                     <section className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                         <h3 className="font-bold text-xl mb-4 text-slate-800 flex items-center"><FileSpreadsheet className="mr-2 text-green-600"/> 從檔案匯入 (Excel/CSV)</h3>
-                         <div className="bg-green-50 p-4 rounded-lg text-sm text-green-800 border border-green-100 mb-4">
-                             <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-3">
-                               <p className="font-bold flex items-center"><AlertTriangle size={16} className="mr-1"/> 支援格式：.xlsx, .csv</p>
-                               <button onClick={downloadTemplate} className="bg-white border border-green-200 text-green-600 hover:bg-green-50 px-4 py-2 rounded-lg text-sm font-bold transition shadow-sm flex items-center whitespace-nowrap"><Download size={16} className="mr-2"/> 下載 Excel 範例</button>
-                             </div>
-                         </div>
-                         <input type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelUpload} className={`block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-${ThemeColor}-50 file:text-${ThemeColor}-700 hover:file:bg-${ThemeColor}-100`}/>
-                         {bulkPreview.length > 0 && <button onClick={()=>{setQuestions([...questions,...bulkPreview]);setBulkPreview([]);showNotify(`已匯入 ${bulkPreview.length} 題`)}} className="mt-4 bg-green-600 text-white px-6 py-2 rounded-lg font-bold flex items-center"><CheckCircle size={18} className="mr-2"/> 確認匯入</button>}
-                     </section>
-                     
-                     <section className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                         <h3 className={`font-bold text-xl mb-4 text-slate-800 flex items-center`}> <Save className={`mr-2 text-${ThemeColor}-600`}/> 匯出題庫 </h3>
-                         <button onClick={exportToExcel} className="p-4 border border-slate-200 rounded-lg hover:bg-slate-50 text-left w-full group">
-                             <div className="font-bold text-slate-700 flex items-center mb-1"><Download size={20} className="mr-2"/> 匯出 Excel (完整備份)</div>
-                             <div className="text-xs text-slate-500">包含所有初級與中級題目</div>
-                         </button>
-                     </section>
+                      <section className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                          <h3 className="font-bold text-xl mb-4 text-slate-800 flex items-center"><FileSpreadsheet className={`mr-2 text-${ThemeColor}-600`}/> 匯入題庫 (Excel)</h3>
+                          <div className={`bg-${ThemeColor}-50 p-4 rounded-lg text-sm text-${ThemeColor}-800 border border-${ThemeColor}-100 mb-4`}>
+                              <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-3">
+                                <p className="font-bold flex items-center"><AlertTriangle size={16} className="mr-1"/> Excel 欄位順序：</p>
+                                <button onClick={downloadTemplate} className={`bg-white border border-${ThemeColor}-200 text-${ThemeColor}-600 hover:bg-${ThemeColor}-50 px-4 py-2 rounded-lg text-sm font-bold transition shadow-sm flex items-center whitespace-nowrap`}><Download size={16} className="mr-2"/> 下載範例檔</button>
+                              </div>
+                              <div className="w-full overflow-x-auto pb-2">
+                                <div className="flex gap-2 min-w-max">
+                                    {['A:等級', 'B:科目', 'C:主題', 'D:內容', 'E:題目', 'F:選項A', 'G:選項B', 'H:選項C', 'I:選項D', 'J:答案', 'K:解析'].map((h,i)=>(
+                                        <div key={i} className={`bg-white px-3 py-2 rounded border border-${ThemeColor}-200 font-mono text-xs shadow-sm whitespace-nowrap`}>{h}</div>
+                                    ))}
+                                </div>
+                              </div>
+                          </div>
+                          <input type="file" accept=".xlsx,.xls" onChange={handleExcelUpload} className={`block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-${ThemeColor}-50 file:text-${ThemeColor}-700 hover:file:bg-${ThemeColor}-100`}/>
+                          {bulkPreview.length > 0 && <button onClick={()=>{setQuestions([...questions,...bulkPreview]);setBulkPreview([]);showNotify(`已匯入 ${bulkPreview.length} 題`)}} className="mt-4 bg-green-600 text-white px-6 py-2 rounded-lg font-bold flex items-center"><CheckCircle size={18} className="mr-2"/> 確認匯入</button>}
+                      </section>
+                      <section className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                          <h3 className={`font-bold text-xl mb-4 text-slate-800 flex items-center`}> <Save className={`mr-2 text-${ThemeColor}-600`}/> 匯出題庫 </h3>
+                          <button onClick={exportToExcel} className="p-4 border border-slate-200 rounded-lg hover:bg-slate-50 text-left w-full group">
+                              <div className="font-bold text-slate-700 flex items-center mb-1"><Download size={20} className="mr-2"/> 匯出 Excel (完整備份)</div>
+                              <div className="text-xs text-slate-500">包含所有初級與中級題目</div>
+                          </button>
+                      </section>
                    </div>
                 )}
                 {activeTab === 'ai_import' && (
@@ -637,14 +654,15 @@
                                     <Copy size={16} className="mr-2"/> 複製「中級」指令
                                 </button>
                             </div>
+                            <p className="mt-3 text-xs text-slate-500 opacity-80 text-center">* 指令已包含營運智慧考科細項要求</p>
                         </div>
                         <div className="mb-2 text-xs text-slate-500 font-bold flex justify-between items-center">
                             <span>貼上 JSON 內容：</span>
-                            <span className="text-red-400 font-normal">※ 模擬試題僅供參考</span>
+                            <span className="text-red-400 font-normal">※ 模擬試題僅供參考，非正式考題內容</span>
                         </div>
                         <textarea 
                             className="w-full p-4 border border-slate-200 rounded-xl h-64 font-mono text-xs outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100 transition" 
-                            placeholder='[{"level": "中級", "subject": "...", "question": "...", "options": ["A", "B", "C", "D"], "correctAnswer": "A", "explanation": "..."}]'
+                            placeholder='[{"level": "初級", "subject": "...", "question": "...", "options": ["A", "B", "C", "D"], "correctAnswer": "A", "explanation": "..."}]'
                             value={jsonInput}
                             onChange={(e) => setJsonInput(e.target.value)}
                         />
@@ -779,29 +797,29 @@
                           
                           <div className="space-y-3 mb-8">
                              {q.options.map((opt, i) => {
-                                 let style = `w-full text-left p-4 rounded-xl border-2 transition-all flex items-center relative `;
-                                 const isSelected = isMulti 
-                                     ? Array.isArray(userAnswer) && userAnswer.includes(opt)
-                                     : userAnswer === opt;
-                                 if (isMock || !isConfirmed) {
-                                     style += isSelected ? `border-${ThemeColor}-600 bg-${ThemeColor}-50` : `border-slate-200 hover:border-${ThemeColor}-300 hover:bg-${ThemeColor}-50`;
-                                 } else {
-                                     const correctSet = normalizeAnswer(q);
-                                     const isOptCorrect = correctSet.includes(opt);
-                                     
-                                     if (isOptCorrect) style += "border-green-500 bg-green-50"; 
-                                     else if (isSelected) style += "border-red-500 bg-red-50"; 
-                                     else style += "border-slate-100 opacity-50"; 
-                                 }
-                                 
-                                 return (
-                                     <button key={i} onClick={() => handleOptionClick(q, opt)} disabled={isConfirmed && !isMock} className={style}>
-                                         <div className={`w-8 h-8 rounded-full border-2 mr-4 flex items-center justify-center font-bold ${isMulti ? 'rounded-md' : 'rounded-full'}`}>
-                                             {isMulti && isSelected ? <CheckSquare size={16}/> : String.fromCharCode(65+i)}
-                                         </div>
-                                         {opt}
-                                     </button>
-                                 );
+                                  let style = `w-full text-left p-4 rounded-xl border-2 transition-all flex items-center relative `;
+                                  const isSelected = isMulti 
+                                      ? Array.isArray(userAnswer) && userAnswer.includes(opt)
+                                      : userAnswer === opt;
+                                  if (isMock || !isConfirmed) {
+                                      style += isSelected ? `border-${ThemeColor}-600 bg-${ThemeColor}-50` : `border-slate-200 hover:border-${ThemeColor}-300 hover:bg-${ThemeColor}-50`;
+                                  } else {
+                                      const correctSet = normalizeAnswer(q);
+                                      const isOptCorrect = correctSet.includes(opt);
+                                      
+                                      if (isOptCorrect) style += "border-green-500 bg-green-50"; 
+                                      else if (isSelected) style += "border-red-500 bg-red-50"; 
+                                      else style += "border-slate-100 opacity-50"; 
+                                  }
+                                  
+                                  return (
+                                      <button key={i} onClick={() => handleOptionClick(q, opt)} disabled={isConfirmed && !isMock} className={style}>
+                                          <div className={`w-8 h-8 rounded-full border-2 mr-4 flex items-center justify-center font-bold ${isMulti ? 'rounded-md' : 'rounded-full'}`}>
+                                               {isMulti && isSelected ? <CheckSquare size={16}/> : String.fromCharCode(65+i)}
+                                          </div>
+                                          {opt}
+                                      </button>
+                                  );
                              })}
                           </div>
                           
@@ -902,8 +920,8 @@
                             <div className={`bg-gradient-to-r from-${ThemeColor}-600 to-${ThemeColor}-700 text-white p-3 font-bold flex justify-between`}><span>系統小幫手</span><button onClick={()=>setHelperOpen(false)}><X size={16}/></button></div>
                             <div className="p-4 text-sm text-slate-600 space-y-3 h-80 overflow-y-auto">
                                 <div className="space-y-1">
-                                    <p className="font-bold text-slate-800 flex items-center"><FileSpreadsheet size={16} className="mr-1"/> 1. 匯入題庫</p>
-                                    <p className="text-xs ml-5">管理頁面可下載 Excel 範例，將題目整理好後批量匯入。</p>
+                                    <p className="font-bold text-slate-800 flex items-center"><FolderOpen size={16} className="mr-1"/> 1. 匯入/匯出</p>
+                                    <p className="text-xs ml-5">管理頁面可下載 Excel 範例，批量匯入題目。</p>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="font-bold text-slate-800 flex items-center"><Bot size={16} className="mr-1"/> 2. AI 快速匯入</p>
@@ -913,9 +931,13 @@
                                     <p className="font-bold text-slate-800 flex items-center"><Play size={16} className="mr-1"/> 3. 開始測驗</p>
                                     <p className="text-xs ml-5">可選擇「模擬考」模式進行倒數計時，或「錯題複習」加強弱點。</p>
                                 </div>
+                                 <div className="space-y-1">
+                                    <p className="font-bold text-slate-800 flex items-center"><BarChart2 size={16} className="mr-1"/> 4. 成效分析</p>
+                                    <p className="text-xs ml-5">在「分析」頁面查看各科目的答題正確率與錯題分佈。</p>
+                                </div>
                                 <div className="bg-blue-50 p-2 rounded border border-blue-100 mt-2">
                                     <strong className="text-blue-800 text-xs">💡 小提示</strong>
-                                    <p className="text-xs text-blue-600">右上角設定可清空錯題，或重置整個系統。</p>
+                                    <p className="text-xs text-blue-600">右上角可調整設定，包含清空錯題與重置系統。</p>
                                 </div>
                             </div>
                         </div>
